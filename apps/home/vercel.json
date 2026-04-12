@@ -1,5 +1,21 @@
 {
-  "routes": [
-    { "handle": "filesystem" }
+  "rewrites": [
+    {
+      "source": "/portfolio",
+      "destination": "https://big3-portfolio.vercel.app/portfolio"
+    },
+    {
+      "source": "/portfolio/:path*",
+      "destination": "https://big3-portfolio.vercel.app/portfolio/:path*"
+    },
+    {
+      "source": "/blog",
+      "destination": "https://big3-blog.vercel.app/blog"
+    },
+    {
+      "source": "/blog/:path*",
+      "destination": "https://big3-blog.vercel.app/blog/:path*"
+    }
   ]
 }
+

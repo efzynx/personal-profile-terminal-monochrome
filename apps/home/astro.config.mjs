@@ -14,9 +14,9 @@ const env = { ...process.env, ...fileEnv };
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'static',
+  output: 'server',
   adapter: vercel({
-    middlewareMode: 'edge',
+    isr: false,
   }),
   base: env.PUBLIC_HOME_BASE_PATH || '/',
   server: { port: parseInt(env.APP_HOME_PORT || '4321') },
