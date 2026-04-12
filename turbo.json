@@ -6,7 +6,21 @@
             "persistent": true
         },
         "build": {
-            "outputs": ["dist/**"]
+            "outputs": ["dist/**"],
+            "env": [
+                "PUBLIC_HOME_BASE_PATH",
+                "PUBLIC_PORTFOLIO_BASE_PATH",
+                "PUBLIC_BLOG_BASE_PATH",
+                "PUBLIC_WRITER_BASE_PATH",
+                "PORTFOLIO_UPSTREAM_URL",
+                "BLOG_UPSTREAM_URL",
+                "WRITER_UPSTREAM_URL",
+                "GITHUB_TOKEN",
+                "PUBLIC_HOME_URL",
+                "PUBLIC_PORTFOLIO_URL",
+                "PUBLIC_BLOG_URL",
+                "PUBLIC_WRITER_URL"
+            ]
         }
     }
 }
