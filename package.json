@@ -1,0 +1,23 @@
+{
+  "name": "big3",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:home": "pnpm --filter apps-home dev -- --port 4321",
+    "dev:portfolio": "pnpm --filter apps-portfolio dev -- --port 4322",
+    "dev:blog": "pnpm --filter apps-blog dev -- --port 4323",
+    "dev:writer": "pnpm --filter apps-writer dev -- --port 4324",
+    "build": "turbo build",
+    "check": "pnpm -r check"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "eslint": "^10.2.0",
+    "prettier": "^3.8.2",
+    "turbo": "^2.9.6",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8"
+  }
+}

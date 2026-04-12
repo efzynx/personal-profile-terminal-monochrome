@@ -1,0 +1,19 @@
+{
+  "routes": [
+    {
+      "src": "/portfolio/(.*)",
+      "dest": "${PORTFOLIO_UPSTREAM_URL}/portfolio/$1",
+      "env": ["PORTFOLIO_UPSTREAM_URL"]
+    },
+    {
+      "src": "/blog/(.*)",
+      "dest": "${BLOG_UPSTREAM_URL}/blog/$1",
+      "env": ["BLOG_UPSTREAM_URL"]
+    },
+    {
+      "src": "/writer/(.*)",
+      "dest": "${WRITER_UPSTREAM_URL}/writer/$1",
+      "env": ["WRITER_UPSTREAM_URL"]
+    }
+  ]
+}

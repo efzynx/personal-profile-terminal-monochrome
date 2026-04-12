@@ -1,0 +1,12 @@
+:root {
+    --color-background: #000000;
+    --color-surface: #0A0A0A;
+    --color-border: #444444;
+    --color-text: #E0E0E0;
+    --color-muted: #444444;
+    --color-accent: #888888;
+    --color-primary: #FFFFFF;
+
+    --font-mono: "JetBrains Mono", monospace;
+    --font-sans: "IBM Plex Sans", sans-serif;
+}
