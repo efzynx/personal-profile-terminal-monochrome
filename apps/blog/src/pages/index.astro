@@ -16,8 +16,9 @@ function formatDate(d: Date) {
     title="Blog"
     description="Catatan teknis Ahmad Fauzan Adiman — Backend, DevOps, Linux"
     breadcrumb="cd ~/blog"
-    backHref={import.meta.env.PUBLIC_HOME_URL ||
-        (import.meta.env.DEV ? import.meta.env.PUBLIC_HOME_URL || "http://localhost:4321" : "/")}
+    backHref={import.meta.env.DEV
+        ? (import.meta.env.PUBLIC_HOME_URL || "http://localhost:4321")
+        : "/"}
     backLabel="cd ~/"
 >
     <!-- Header -->
