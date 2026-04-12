@@ -13,7 +13,7 @@ const env = { ...process.env, ...fileEnv };
 
 // https://astro.build/config
 export default defineConfig({
-  base: '/',
+  base: '/blog',
   server: { port: parseInt(env.APP_BLOG_PORT || '4323') },
   image: { service: passthroughImageService() },
   vite: {

@@ -23,7 +23,7 @@ const readTime = Math.max(1, Math.ceil(wordCount / 200));
     title={post.data.title}
     description={post.data.description}
     breadcrumb={`cd ~/blog/${post.id}`}
-    backHref="/"
+    backHref={import.meta.env.BASE_URL}
     backLabel="cd ~/blog"
 >
     <!-- Article header -->
@@ -56,7 +56,7 @@ const readTime = Math.max(1, Math.ceil(wordCount / 200));
     <footer class="border-t border-muted pt-6 font-mono text-sm text-accent flex justify-between items-center">
         <span>EOF</span>
         <div class="flex gap-4">
-            <a href="/" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Back]</a>
+            <a href={import.meta.env.BASE_URL} class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Back]</a>
             <a href="#" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Top ↑]</a>
         </div>
     </footer>

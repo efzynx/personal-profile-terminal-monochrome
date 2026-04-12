@@ -17,5 +17,8 @@
     "tailwindcss": "^4.2.2",
     "@repo/theme": "workspace:*",
     "@repo/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@astrojs/vercel": "^10.0.4"
   }
 }
