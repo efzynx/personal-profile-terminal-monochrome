@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig, passthroughImageService } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import { loadEnv } from 'vite';
 import { fileURLToPath } from 'url';
@@ -15,6 +15,7 @@ const env = { ...process.env, ...fileEnv };
 export default defineConfig({
   base: env.PUBLIC_HOME_BASE_PATH || '/',
   server: { port: parseInt(env.APP_HOME_PORT || '4321') },
+  image: { service: passthroughImageService() },
   vite: {
     envDir: '../../',
     plugins: [tailwindcss()],
