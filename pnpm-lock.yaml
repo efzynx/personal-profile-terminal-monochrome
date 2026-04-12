@@ -62,6 +62,10 @@ importers:
       tailwindcss:
         specifier: ^4.2.2
         version: 4.2.2
+    devDependencies:
+      '@astrojs/vercel':
+        specifier: ^10.0.4
+        version: 10.0.4(astro@6.1.5(@types/node@25.6.0)(@vercel/functions@3.4.3)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.60.1)(typescript@6.0.2))(rollup@4.60.1)
 
   apps/portfolio:
     dependencies:
