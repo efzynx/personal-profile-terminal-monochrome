@@ -7,7 +7,9 @@ import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const env = loadEnv(process.env.NODE_ENV || 'development', '../../', '');
+// Coba baca dari file .env lokal (monorepo root), fallback ke process.env (Vercel)
+const fileEnv = loadEnv(process.env.NODE_ENV || 'production', '../../', '');
+const env = { ...process.env, ...fileEnv };
 
 // https://astro.build/config
 export default defineConfig({
