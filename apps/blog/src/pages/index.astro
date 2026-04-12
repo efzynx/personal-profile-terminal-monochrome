@@ -1,0 +1,69 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "@repo/ui/layouts/BaseLayout.astro";
+
+const allPosts = await getCollection("posts", ({ data }) => !data.draft);
+const posts = allPosts.sort(
+    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+
+function formatDate(d: Date) {
+    return d.toISOString().slice(0, 10);
+}
+---
+
+<BaseLayout
+    title="Blog"
+    description="Catatan teknis Ahmad Fauzan Adiman — Backend, DevOps, Linux"
+    breadcrumb="cd ~/blog"
+    backHref={import.meta.env.DEV ? import.meta.env.PUBLIC_HOME_URL || "http://localhost:4321" : "/"}
+    backLabel="cd ~/"
+>
+    <!-- Header -->
+    <header class="border-b border-muted pb-4">
+        <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary">
+            total {posts.length} posts
+        </h1>
+        <p class="font-mono text-sm text-accent mt-2">
+            drwxr-xr-x fauzan users 4096 . ~/blog
+        </p>
+    </header>
+
+    <!-- Table header (desktop only) -->
+    <div
+        class="hidden md:grid grid-cols-[120px_120px_1fr] gap-4 px-4 py-2 font-mono text-sm font-bold border-b border-muted text-primary uppercase"
+    >
+        <div>Date</div>
+        <div>Category</div>
+        <div>Title</div>
+    </div>
+
+    <!-- Post list -->
+    <div class="flex flex-col">
+        {
+            posts.length === 0 ? (
+                <div class="py-12 flex justify-center border border-dashed border-muted">
+                    <p class="font-mono text-sm text-accent">No posts found.</p>
+                </div>
+            ) : (
+                posts.map((post) => (
+                    <a
+                        id={`post-${post.id}`}
+                        href={`${import.meta.env.BASE_URL}/posts/${post.id}`}
+                        class="terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
+                    >
+                        <div class="font-mono text-sm text-accent self-center">
+                            {formatDate(post.data.pubDate)}
+                        </div>
+                        <div class="font-mono text-sm text-muted self-center font-bold tracking-wider">
+                            [{post.data.category}]
+                        </div>
+                        <div class="font-sans text-base text-text self-center title-text group-hover:text-primary transition-colors duration-0">
+                            {post.data.title}
+                        </div>
+                    </a>
+                ))
+            )
+        }
+    </div>
+</BaseLayout>

@@ -1,0 +1,40 @@
+---
+import BaseLayout from "@repo/ui/layouts/BaseLayout.astro";
+
+const items = [
+    { id: "proj-github", label: "github", desc: "Repository publik saya di GitHub", href: "/project/github" },
+];
+---
+
+<BaseLayout
+    title="Project"
+    description="Daftar platform project Ahmad Fauzan Adiman"
+    breadcrumb="cd ~/project"
+    backHref="/"
+    backLabel="cd ~/"
+>
+    <header class="border-b border-muted pb-4">
+        <p class="font-mono text-sm text-accent">
+            fauzan@tux:~$ <span class="text-text">ls -la project/</span>
+        </p>
+    </header>
+
+    <div class="flex flex-col">
+        {items.map((item, i) => (
+            <a
+                id={item.id}
+                href={item.href}
+                class="terminal-hover group grid grid-cols-1 md:grid-cols-[80px_1fr_auto] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
+            >
+                <div class="font-mono text-sm text-accent self-center">[{String(i + 1).padStart(2, '0')}]</div>
+                <div class="flex flex-col gap-1">
+                    <div class="font-mono text-base text-text title-text group-hover:text-primary transition-colors duration-0">
+                        {item.label}/
+                    </div>
+                    <div class="font-sans text-xs text-muted">{item.desc}</div>
+                </div>
+                <div class="font-mono text-xs text-muted self-center group-hover:text-accent">cd {item.label}/</div>
+            </a>
+        ))}
+    </div>
+</BaseLayout>

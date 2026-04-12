@@ -1,0 +1,109 @@
+---
+import BaseLayout from "@repo/ui/layouts/BaseLayout.astro";
+
+interface Repo {
+    id: number;
+    name: string;
+    description: string | null;
+    html_url: string;
+    language: string | null;
+    stargazers_count: number;
+    updated_at: string;
+    topics: string[];
+}
+
+let repos: Repo[] = [];
+let fetchError = false;
+
+const githubToken = import.meta.env.GITHUB_TOKEN;
+const githubHeaders: Record<string, string> = {
+    "Accept": "application/vnd.github.v3+json",
+};
+if (githubToken) {
+    githubHeaders["Authorization"] = `Bearer ${githubToken}`;
+}
+
+try {
+    const res = await fetch("https://api.github.com/users/efzynx/repos?sort=updated&per_page=4&type=public", {
+        headers: githubHeaders
+    });
+    if (res.ok) {
+        repos = await res.json();
+    } else {
+        fetchError = true;
+    }
+} catch {
+    fetchError = true;
+}
+
+function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "today";
+    if (days === 1) return "yesterday";
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    return `${Math.floor(months / 12)}y ago`;
+}
+---
+
+<BaseLayout
+    title="GitHub Repositories"
+    description="Repository publik terbaru Ahmad Fauzan Adiman di GitHub"
+    breadcrumb="cd ~/project/github"
+    backHref="/project"
+    backLabel="cd ~/project"
+>
+    <header class="border-b border-muted pb-4">
+        <p class="font-mono text-sm text-accent">
+            fauzan@tux:~$ <span class="text-text">git ls-remote --repos efzynx | head -4</span>
+        </p>
+    </header>
+
+    {fetchError ? (
+        <div class="font-mono text-sm text-muted border border-dashed border-muted px-4 py-6 text-center">
+            <p class="text-accent mb-1">[ERROR]</p>
+            <p>Gagal mengambil data dari GitHub API. Coba lagi nanti.</p>
+        </div>
+    ) : (
+        <div class="flex flex-col">
+            {repos.map((repo, i) => (
+                <a
+                    id={`repo-${repo.name}`}
+                    href={`/project/github/${repo.name}`}
+                    class="terminal-hover group grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-2 md:gap-4 px-4 py-5 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
+                >
+                    <div class="font-mono text-sm text-accent self-start pt-0.5">{String(i + 1).padStart(2, '0')}.</div>
+                    <div class="flex flex-col gap-2">
+                        <div class="font-mono text-base font-bold text-text title-text group-hover:text-primary transition-colors duration-0">
+                            {repo.name}
+                        </div>
+                        <p class="font-sans text-sm text-muted leading-relaxed">
+                            {repo.description ?? "No description provided."}
+                        </p>
+                        {repo.topics.length > 0 && (
+                            <div class="flex flex-wrap gap-2">
+                                {repo.topics.slice(0, 4).map(topic => (
+                                    <span class="font-mono text-xs text-muted border border-muted px-2 py-0.5">[{topic}]</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div class="flex flex-col gap-1 items-start md:items-end self-start">
+                        {repo.language && (
+                            <span class="font-mono text-xs text-accent">{repo.language}</span>
+                        )}
+                        <span class="font-mono text-xs text-muted">★ {repo.stargazers_count}</span>
+                        <span class="font-mono text-xs text-muted">{timeAgo(repo.updated_at)}</span>
+                    </div>
+                </a>
+            ))}
+        </div>
+    )}
+
+    <div class="pt-4 font-mono text-xs text-muted flex justify-between items-center">
+        <span>source: github.com/efzynx</span>
+        <a href="https://github.com/efzynx" target="_blank" rel="noopener noreferrer" class="text-accent hover:text-primary transition-colors duration-0">[view all repos]</a>
+    </div>
+</BaseLayout>
