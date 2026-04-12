@@ -13,7 +13,7 @@ const env = { ...process.env, ...fileEnv };
 
 // https://astro.build/config
 export default defineConfig({
-  base: env.PUBLIC_PORTFOLIO_BASE_PATH || '/portfolio',
+  base: '/',
   server: { port: parseInt(env.APP_PORTFOLIO_PORT || '4322') },
   image: { service: passthroughImageService() },
   vite: {
