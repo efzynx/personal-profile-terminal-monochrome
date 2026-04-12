@@ -121,10 +121,8 @@ const {
                     >terminal</span
                 >
                 <a
-                    href={import.meta.env.DEV
-                        ? import.meta.env.PUBLIC_HOME_URL ||
-                          "http://localhost:4321"
-                        : "/"}
+                    href={import.meta.env.PUBLIC_HOME_URL ||
+                        (import.meta.env.DEV ? "http://localhost:4321" : "/")}
                     class="hover:text-primary transition-colors duration-0 cursor-[crosshair]"
                     title="Return to Gateway Home">fauzan@tux:~$</a
                 >

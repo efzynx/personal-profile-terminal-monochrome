@@ -52,9 +52,9 @@ function timeAgo(dateStr: string): string {
 }
 
 // Link ke halaman detail README di app Home
-const homeUrl = import.meta.env.DEV
-    ? import.meta.env.PUBLIC_HOME_URL || "http://localhost:4321"
-    : "";
+const homeUrl =
+    import.meta.env.PUBLIC_HOME_URL ||
+    (import.meta.env.DEV ? "http://localhost:4321" : "");
 
 const skills = [
     { name: "Docker",      level: "medium"   },
@@ -87,7 +87,8 @@ const levelText: Record<Level, string> = {
     title="Portfolio"
     description="Portfolio proyek Ahmad Fauzan Adiman — Backend Developer & DevOps Enthusiast"
     breadcrumb="cd ~/portfolio"
-    backHref={import.meta.env.DEV ? import.meta.env.PUBLIC_HOME_URL || "http://localhost:4321" : "/"}
+    backHref={import.meta.env.PUBLIC_HOME_URL ||
+        (import.meta.env.DEV ? import.meta.env.PUBLIC_HOME_URL || "http://localhost:4321" : "/")}
     backLabel="cd ~/"
 >
     <!-- Page Header -->
