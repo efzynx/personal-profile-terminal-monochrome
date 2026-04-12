@@ -1,1 +1,8 @@
-{}
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/blog/:path*", "destination": "/:path*" },
+    { "source": "/blog", "destination": "/" }
+  ]
+}
+

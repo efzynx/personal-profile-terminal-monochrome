@@ -1,8 +1,17 @@
 import { defineMiddleware } from 'astro:middleware';
 
 /**
- * Proxy request ke upstream URL, strip prefix dari pathname.
- * Contoh: /portfolio/about → https://big3-portfolio.vercel.app/about
+ * Proxy request ke upstream URL, strip prefix sebelum forwarding.
+ *
+ * Blog dan portfolio di-build dengan base '/', jadi file mereka
+ * ada di root domain masing-masing. Middleware ini strip prefix
+ * /blog dan /portfolio sebelum proxy ke upstream.
+ *
+ * Contoh:
+ *   /blog                      → big3-blog.vercel.app/
+ *   /blog/posts/hello-world    → big3-blog.vercel.app/posts/hello-world
+ *   /portfolio                 → big3-portfolio.vercel.app/
+ *   /portfolio/some-page       → big3-portfolio.vercel.app/some-page
  */
 async function proxyTo(
   upstreamBase: string,
@@ -22,7 +31,7 @@ async function proxyTo(
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = new URL(context.request.url);
 
-  // Proxy /portfolio dan /portfolio/* ke portfolio upstream
+  // Proxy /portfolio dan /portfolio/* ke portfolio upstream (strip prefix)
   const portfolioUrl = import.meta.env.PORTFOLIO_UPSTREAM_URL;
   if (portfolioUrl && (pathname === '/portfolio' || pathname.startsWith('/portfolio/'))) {
     const stripped = pathname.slice('/portfolio'.length) || '/';
@@ -33,7 +42,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  // Proxy /blog dan /blog/* ke blog upstream
+  // Proxy /blog dan /blog/* ke blog upstream (strip prefix)
   const blogUrl = import.meta.env.BLOG_UPSTREAM_URL;
   if (blogUrl && (pathname === '/blog' || pathname.startsWith('/blog/'))) {
     const stripped = pathname.slice('/blog'.length) || '/';
@@ -44,6 +53,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  // Semua route home lainnya dilayani normal (static prerendered)
+  // Semua route home lainnya dilayani normal (prerendered)
   return next();
 });
