@@ -3,15 +3,19 @@ import { defineMiddleware } from 'astro:middleware';
 /**
  * Proxy request ke upstream URL, strip prefix sebelum forwarding.
  *
- * Blog dan portfolio di-build dengan base '/', jadi file mereka
- * ada di root domain masing-masing. Middleware ini strip prefix
- * /blog dan /portfolio sebelum proxy ke upstream.
+ * Blog dan portfolio di-deploy sebagai standalone app di Vercel.
+ * Middleware ini men-strip prefix /blog dan /portfolio sebelum
+ * proxy ke upstream domain masing-masing.
  *
  * Contoh:
  *   /blog                      → big3-blog.vercel.app/
  *   /blog/posts/hello-world    → big3-blog.vercel.app/posts/hello-world
  *   /portfolio                 → big3-portfolio.vercel.app/
  *   /portfolio/some-page       → big3-portfolio.vercel.app/some-page
+ *
+ * CATATAN: env var dibaca dari process.env di runtime (bukan import.meta.env
+ * yang dikompilasi saat build). Ini penting agar env var dari Vercel dashboard
+ * bisa dibaca oleh serverless function.
  */
 async function proxyTo(
   upstreamBase: string,
@@ -32,8 +36,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = new URL(context.request.url);
 
   // Proxy /portfolio dan /portfolio/* ke portfolio upstream (strip prefix)
-  const portfolioUrl = import.meta.env.PORTFOLIO_UPSTREAM_URL;
-  if (portfolioUrl && (pathname === '/portfolio' || pathname.startsWith('/portfolio/'))) {
+  // Gunakan process.env agar bisa dibaca dari Vercel env vars di runtime
+  const portfolioUrl =
+    process.env.PORTFOLIO_UPSTREAM_URL ||
+    import.meta.env.PORTFOLIO_UPSTREAM_URL ||
+    'https://big3-portfolio.vercel.app';
+
+  if (pathname === '/portfolio' || pathname.startsWith('/portfolio/')) {
     const stripped = pathname.slice('/portfolio'.length) || '/';
     try {
       return await proxyTo(portfolioUrl, context.request, stripped);
@@ -43,8 +52,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   // Proxy /blog dan /blog/* ke blog upstream (strip prefix)
-  const blogUrl = import.meta.env.BLOG_UPSTREAM_URL;
-  if (blogUrl && (pathname === '/blog' || pathname.startsWith('/blog/'))) {
+  const blogUrl =
+    process.env.BLOG_UPSTREAM_URL ||
+    import.meta.env.BLOG_UPSTREAM_URL ||
+    'https://big3-blog.vercel.app';
+
+  if (pathname === '/blog' || pathname.startsWith('/blog/')) {
     const stripped = pathname.slice('/blog'.length) || '/';
     try {
       return await proxyTo(blogUrl, context.request, stripped);

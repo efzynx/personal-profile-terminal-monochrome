@@ -51,7 +51,7 @@ function formatDate(d: Date) {
                 posts.map((post) => (
                     <a
                         id={`post-${post.id}`}
-                        href={`${import.meta.env.BASE_URL}posts/${post.id}`}
+                        href={`${import.meta.env.BASE_URL}/posts/${post.id}`}
                         class="terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
                     >
                         <div class="font-mono text-sm text-accent self-center">
