@@ -1,17 +1,5 @@
 {
   "routes": [
-    { "handle": "filesystem" },
-    {
-      "src": "/portfolio(.*)",
-      "dest": "${PORTFOLIO_UPSTREAM_URL}/portfolio$1"
-    },
-    {
-      "src": "/blog(.*)",
-      "dest": "${BLOG_UPSTREAM_URL}/blog$1"
-    },
-    {
-      "src": "/writer(.*)",
-      "dest": "${WRITER_UPSTREAM_URL}/writer$1"
-    }
+    { "handle": "filesystem" }
   ]
 }
