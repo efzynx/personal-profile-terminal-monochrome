@@ -1,19 +1,16 @@
 {
-  "routes": [
+  "rewrites": [
     {
-      "src": "/portfolio/(.*)",
-      "dest": "${PORTFOLIO_UPSTREAM_URL}/portfolio/$1",
-      "env": ["PORTFOLIO_UPSTREAM_URL"]
+      "source": "/portfolio/:path*",
+      "destination": "https://big3-portfolio.vercel.app/portfolio/:path*"
     },
     {
-      "src": "/blog/(.*)",
-      "dest": "${BLOG_UPSTREAM_URL}/blog/$1",
-      "env": ["BLOG_UPSTREAM_URL"]
+      "source": "/blog/:path*",
+      "destination": "https://big3-blog.vercel.app/blog/:path*"
     },
     {
-      "src": "/writer/(.*)",
-      "dest": "${WRITER_UPSTREAM_URL}/writer/$1",
-      "env": ["WRITER_UPSTREAM_URL"]
+      "source": "/writer/:path*",
+      "destination": "https://big3-writer.vercel.app/writer/:path*"
     }
   ]
 }
