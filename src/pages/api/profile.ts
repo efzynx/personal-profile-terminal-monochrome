@@ -41,6 +41,12 @@ export const POST: APIRoute = async ({ cookies, request }) => {
         const buffer = Buffer.from(arrayBuffer);
 
         const avatarUrl = await saveAvatarImage(filename, buffer, session.token);
+
+        // Auto-update profile.json with new avatarUrl
+        const profile = await getProfileData(session.token);
+        profile.avatarUrl = avatarUrl;
+        await saveProfileData(profile, session.token);
+
         return new Response(JSON.stringify({ success: true, avatarUrl }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -56,6 +62,13 @@ export const POST: APIRoute = async ({ cookies, request }) => {
         const result = await saveFaviconImage(filename, buffer, session.token);
         if (result.error) {
           return new Response(JSON.stringify({ error: result.error }), { status: 400 });
+        }
+
+        if (result.url) {
+          // Auto-update profile.json with new faviconUrl
+          const profile = await getProfileData(session.token);
+          profile.faviconUrl = result.url;
+          await saveProfileData(profile, session.token);
         }
 
         return new Response(JSON.stringify({ success: true, faviconUrl: result.url }), {

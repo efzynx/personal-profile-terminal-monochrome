@@ -89,13 +89,32 @@ export async function getValidCloudinaryOAuthToken(sessionToken?: string): Promi
   return { cloudName, error: 'Sesi OAuth Cloudinary telah kadaluarsa. Silakan tautkan ulang di Admin Settings.' };
 }
 
+function getMimeType(buffer: Buffer, filename?: string): string {
+  if (filename) {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (ext === 'svg') return 'image/svg+xml';
+    if (ext === 'webp') return 'image/webp';
+    if (ext === 'ico') return 'image/x-icon';
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+    if (ext === 'gif') return 'image/gif';
+    if (ext === 'avif') return 'image/avif';
+    if (ext === 'png') return 'image/png';
+  }
+  const head = buffer.slice(0, 100).toString('utf-8').trim().toLowerCase();
+  if (head.includes('<svg') || head.startsWith('<?xml')) {
+    return 'image/svg+xml';
+  }
+  return 'image/png';
+}
+
 /**
  * Mengunggah file buffer ke Cloudinary menggunakan OAuth Bearer Token.
  */
 export async function uploadToCloudinaryViaOAuth(
   buffer: Buffer,
   folder: string = 'media',
-  sessionToken?: string
+  sessionToken?: string,
+  filename?: string
 ): Promise<{ url?: string; error?: string }> {
   const { accessToken, cloudName, error } = await getValidCloudinaryOAuthToken(sessionToken);
 
@@ -104,12 +123,13 @@ export async function uploadToCloudinaryViaOAuth(
   }
 
   try {
-    const base64Data = `data:image/png;base64,${buffer.toString('base64')}`;
+    const mimeType = getMimeType(buffer, filename);
+    const base64Data = `data:${mimeType};base64,${buffer.toString('base64')}`;
     const formData = new URLSearchParams();
     formData.append('file', base64Data);
     formData.append('folder', folder);
 
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
     const res = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
@@ -122,6 +142,7 @@ export async function uploadToCloudinaryViaOAuth(
     const data = await res.json();
 
     if (!res.ok) {
+      console.error('Cloudinary API error:', data);
       return { error: `Gagal mengunggah ke Cloudinary: ${data.error?.message || res.statusText}` };
     }
 
