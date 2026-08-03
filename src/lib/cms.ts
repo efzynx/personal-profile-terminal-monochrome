@@ -41,7 +41,17 @@ export interface ProfileData {
   skills: ProfileSkill[];
 }
 
+function isProductionEnv(): boolean {
+  return process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+}
 
+function getGithubOwner(): string {
+  return process.env.GITHUB_REPO_OWNER || 'efzynx';
+}
+
+function getGithubRepo(): string {
+  return process.env.GITHUB_REPO_NAME || 'personal-profile-terminal-monochrome';
+}
 
 function getLocalPostsDir(): string {
   const p = path.resolve(process.cwd(), 'src/content/posts');
@@ -149,7 +159,7 @@ async function githubFetch(urlPath: string, options: RequestInit = {}, token?: s
   const headers = {
     Accept: 'application/vnd.github+json',
     Authorization: authToken ? `Bearer ${authToken}` : '',
-    'User-Agent': 'Big3-Writer-App',
+    'User-Agent': 'Writer-App',
     ...options.headers,
   };
   const res = await fetch(`https://api.github.com${urlPath}`, { ...options, headers });
@@ -158,18 +168,20 @@ async function githubFetch(urlPath: string, options: RequestInit = {}, token?: s
 
 // --- PROFILE MANAGEMENT ---
 export async function getProfileData(token?: string): Promise<ProfileData> {
-  const localPath = getLocalProfilePath();
-  if (fs.existsSync(localPath)) {
-    try {
-      const raw = await fs.promises.readFile(localPath, 'utf-8');
-      return JSON.parse(raw);
-    } catch (e) {
-      console.error('Error reading local profile.json:', e);
+  if (!isProductionEnv()) {
+    const localPath = getLocalProfilePath();
+    if (fs.existsSync(localPath)) {
+      try {
+        const raw = await fs.promises.readFile(localPath, 'utf-8');
+        return JSON.parse(raw);
+      } catch (e) {
+        console.error('Error reading local profile.json:', e);
+      }
     }
   }
 
-  const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-  const repo = process.env.GITHUB_REPO_NAME || 'big3';
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
   const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/profile.json`, {}, token);
   if (res.ok) {
     const fileData = await res.json();
@@ -180,24 +192,26 @@ export async function getProfileData(token?: string): Promise<ProfileData> {
   return {
     name: 'Ahmad Fauzan Adiman',
     title: 'Backend Developer & DevOps Enthusiast',
+    terminalPrompt: 'fauzan@archLinux',
     bio: 'Backend Developer & DevOps Enthusiast.\nMahasiswa tingkat akhir Univ. Nurul Jadid.',
     portfolioBio: 'Backend Developer & DevOps Enthusiast.\nMembangun sistem yang robust.',
     avatarUrl: '/saya.avif',
+    faviconUrl: '/favicon.svg',
     skills: [],
   };
 }
 
 export async function saveProfileData(data: ProfileData, token?: string): Promise<{ success: boolean; message: string }> {
   const jsonStr = JSON.stringify(data, null, 2);
-  const localPath = getLocalProfilePath();
 
-  if (process.env.NODE_ENV !== 'production' || fs.existsSync(path.dirname(localPath))) {
+  if (!isProductionEnv()) {
+    const localPath = getLocalProfilePath();
     await fs.promises.writeFile(localPath, jsonStr, 'utf-8');
     return { success: true, message: 'Profil berhasil diperbarui secara lokal!' };
   }
 
-  const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-  const repo = process.env.GITHUB_REPO_NAME || 'big3';
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
   const targetPath = 'src/content/profile.json';
 
   let sha: string | undefined;
@@ -227,27 +241,33 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
 }
 
 export async function saveAvatarImage(filename: string, buffer: Buffer, token?: string): Promise<string> {
-  const avatarDir = path.resolve(process.cwd(), 'public/images/avatar');
-  if (!fs.existsSync(avatarDir)) {
-    fs.mkdirSync(avatarDir, { recursive: true });
+  if (!isProductionEnv()) {
+    const avatarDir = path.resolve(process.cwd(), 'public/images/avatar');
+    if (!fs.existsSync(avatarDir)) {
+      fs.mkdirSync(avatarDir, { recursive: true });
+    }
+    const destPath = path.join(avatarDir, filename);
+    await fs.promises.writeFile(destPath, buffer);
+    return `/images/avatar/${filename}`;
   }
-  const destPath = path.join(avatarDir, filename);
-  await fs.promises.writeFile(destPath, buffer);
 
-  if (process.env.NODE_ENV === 'production') {
-    const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-    const repo = process.env.GITHUB_REPO_NAME || 'big3';
-    const targetPath = `public/images/avatar/${filename}`;
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
+  const targetPath = `public/images/avatar/${filename}`;
 
-    const payload = {
-      message: `feat(profile): upload avatar image ${filename}`,
-      content: buffer.toString('base64'),
-    };
+  const payload = {
+    message: `feat(profile): upload avatar image ${filename}`,
+    content: buffer.toString('base64'),
+  };
 
-    await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }, token);
+  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Gagal upload foto profil ke GitHub: ${err.message || res.statusText}`);
   }
 
   return `/images/avatar/${filename}`;
@@ -255,7 +275,7 @@ export async function saveAvatarImage(filename: string, buffer: Buffer, token?: 
 
 export async function saveFaviconImage(filename: string, buffer: Buffer, token?: string): Promise<{ url?: string; error?: string }> {
   // Validasi Ukuran File (Maksimal 500 KB)
-  const MAX_SIZE_BYTES = 500 * 1024; // 512,000 bytes
+  const MAX_SIZE_BYTES = 500 * 1024;
   if (buffer.length > MAX_SIZE_BYTES) {
     return { error: `Ukuran file terlalu besar (${(buffer.length / 1024).toFixed(1)} KB). Maksimal ukuran favicon adalah 500 KB.` };
   }
@@ -267,27 +287,33 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
     return { error: `Format file ${ext} tidak diizinkan. Gunakan format SVG, PNG, ICO, atau WEBP.` };
   }
 
-  const faviconDir = path.resolve(process.cwd(), 'public/images/favicon');
-  if (!fs.existsSync(faviconDir)) {
-    fs.mkdirSync(faviconDir, { recursive: true });
+  if (!isProductionEnv()) {
+    const faviconDir = path.resolve(process.cwd(), 'public/images/favicon');
+    if (!fs.existsSync(faviconDir)) {
+      fs.mkdirSync(faviconDir, { recursive: true });
+    }
+    const destPath = path.join(faviconDir, filename);
+    await fs.promises.writeFile(destPath, buffer);
+    return { url: `/images/favicon/${filename}` };
   }
-  const destPath = path.join(faviconDir, filename);
-  await fs.promises.writeFile(destPath, buffer);
 
-  if (process.env.NODE_ENV === 'production') {
-    const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-    const repo = process.env.GITHUB_REPO_NAME || 'personal-profile-terminal-monochrome';
-    const targetPath = `public/images/favicon/${filename}`;
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
+  const targetPath = `public/images/favicon/${filename}`;
 
-    const payload = {
-      message: `feat(profile): upload favicon icon ${filename}`,
-      content: buffer.toString('base64'),
-    };
+  const payload = {
+    message: `feat(profile): upload favicon icon ${filename}`,
+    content: buffer.toString('base64'),
+  };
 
-    await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }, token);
+  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  if (!res.ok) {
+    const err = await res.json();
+    return { error: `Gagal upload favicon ke GitHub: ${err.message || res.statusText}` };
   }
 
   return { url: `/images/favicon/${filename}` };
@@ -296,24 +322,26 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
 // --- POSTS MANAGEMENT ---
 
 export async function listPosts(token?: string): Promise<PostItem[]> {
-  const localDir = getLocalPostsDir();
-  if (fs.existsSync(localDir)) {
-    const files = await fs.promises.readdir(localDir);
-    const posts: PostItem[] = [];
-    for (const file of files) {
-      if (file.endsWith('.md') || file.endsWith('.mdx')) {
-        const filePath = path.join(localDir, file);
-        const raw = await fs.promises.readFile(filePath, 'utf-8');
-        const { frontmatter, content } = parseFrontmatter(raw);
-        const slug = file.replace(/\.(md|mdx)$/, '');
-        posts.push({ slug, frontmatter, content });
+  if (!isProductionEnv()) {
+    const localDir = getLocalPostsDir();
+    if (fs.existsSync(localDir)) {
+      const files = await fs.promises.readdir(localDir);
+      const posts: PostItem[] = [];
+      for (const file of files) {
+        if (file.endsWith('.md') || file.endsWith('.mdx')) {
+          const filePath = path.join(localDir, file);
+          const raw = await fs.promises.readFile(filePath, 'utf-8');
+          const { frontmatter, content } = parseFrontmatter(raw);
+          const slug = file.replace(/\.(md|mdx)$/, '');
+          posts.push({ slug, frontmatter, content });
+        }
       }
+      return posts.sort((a, b) => new Date(b.frontmatter.pubDate).getTime() - new Date(a.frontmatter.pubDate).getTime());
     }
-    return posts.sort((a, b) => new Date(b.frontmatter.pubDate).getTime() - new Date(a.frontmatter.pubDate).getTime());
   }
 
-  const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-  const repo = process.env.GITHUB_REPO_NAME || 'big3';
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
   const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/posts`, {}, token);
   if (!res.ok) return [];
   const items = await res.json();
@@ -336,19 +364,21 @@ export async function listPosts(token?: string): Promise<PostItem[]> {
 }
 
 export async function getPost(slug: string, token?: string): Promise<PostItem | null> {
-  const localDir = getLocalPostsDir();
-  const extList = ['.md', '.mdx'];
-  for (const ext of extList) {
-    const filePath = path.join(localDir, `${slug}${ext}`);
-    if (fs.existsSync(filePath)) {
-      const raw = await fs.promises.readFile(filePath, 'utf-8');
-      const { frontmatter, content } = parseFrontmatter(raw);
-      return { slug, frontmatter, content };
+  if (!isProductionEnv()) {
+    const localDir = getLocalPostsDir();
+    const extList = ['.md', '.mdx'];
+    for (const ext of extList) {
+      const filePath = path.join(localDir, `${slug}${ext}`);
+      if (fs.existsSync(filePath)) {
+        const raw = await fs.promises.readFile(filePath, 'utf-8');
+        const { frontmatter, content } = parseFrontmatter(raw);
+        return { slug, frontmatter, content };
+      }
     }
   }
 
-  const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-  const repo = process.env.GITHUB_REPO_NAME || 'big3';
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
   const filePath = `src/content/posts/${slug}.md`;
   const res = await githubFetch(`/repos/${owner}/${repo}/contents/${filePath}`, {}, token);
   if (!res.ok) return null;
@@ -362,9 +392,9 @@ export async function getPost(slug: string, token?: string): Promise<PostItem | 
 export async function savePost(input: SavePostInput, token?: string): Promise<{ success: boolean; message: string }> {
   const { slug, oldSlug, frontmatter, content } = input;
   const rawMarkdown = stringifyFrontmatter(frontmatter, content);
-  const localDir = getLocalPostsDir();
 
-  if (process.env.NODE_ENV !== 'production' || fs.existsSync(localDir)) {
+  if (!isProductionEnv()) {
+    const localDir = getLocalPostsDir();
     if (oldSlug && oldSlug !== slug) {
       const oldPathMd = path.join(localDir, `${oldSlug}.md`);
       const oldPathMdx = path.join(localDir, `${oldSlug}.mdx`);
@@ -376,8 +406,8 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
     return { success: true, message: 'Postingan berhasil disimpan!' };
   }
 
-  const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-  const repo = process.env.GITHUB_REPO_NAME || 'big3';
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
   const targetPath = `src/content/posts/${slug}.md`;
 
   let sha: string | undefined;
@@ -422,24 +452,26 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
 }
 
 export async function deletePost(slug: string, token?: string): Promise<{ success: boolean; message: string }> {
-  const localDir = getLocalPostsDir();
-  const filePathMd = path.join(localDir, `${slug}.md`);
-  const filePathMdx = path.join(localDir, `${slug}.mdx`);
-  let deletedLocal = false;
-  if (fs.existsSync(filePathMd)) { await fs.promises.unlink(filePathMd); deletedLocal = true; }
-  if (fs.existsSync(filePathMdx)) { await fs.promises.unlink(filePathMdx); deletedLocal = true; }
+  if (!isProductionEnv()) {
+    const localDir = getLocalPostsDir();
+    const filePathMd = path.join(localDir, `${slug}.md`);
+    const filePathMdx = path.join(localDir, `${slug}.mdx`);
+    let deletedLocal = false;
+    if (fs.existsSync(filePathMd)) { await fs.promises.unlink(filePathMd); deletedLocal = true; }
+    if (fs.existsSync(filePathMdx)) { await fs.promises.unlink(filePathMdx); deletedLocal = true; }
 
-  if (deletedLocal && process.env.NODE_ENV !== 'production') {
-    return { success: true, message: 'Postingan berhasil dihapus.' };
+    if (deletedLocal) {
+      return { success: true, message: 'Postingan berhasil dihapus secara lokal.' };
+    }
   }
 
-  const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-  const repo = process.env.GITHUB_REPO_NAME || 'big3';
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
   const targetPath = `src/content/posts/${slug}.md`;
 
   const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {}, token);
   if (!existingRes.ok) {
-    return deletedLocal ? { success: true, message: 'Postingan dihapus.' } : { success: false, message: 'Postingan tidak ditemukan.' };
+    return { success: false, message: 'Postingan tidak ditemukan di GitHub.' };
   }
   const existingData = await existingRes.json();
 
@@ -455,28 +487,34 @@ export async function deletePost(slug: string, token?: string): Promise<{ succes
     return { success: false, message: 'Gagal menghapus postingan di GitHub.' };
   }
 
-  return { success: true, message: 'Postingan berhasil dihapus.' };
+  return { success: true, message: 'Postingan berhasil dihapus dari GitHub!' };
 }
 
 export async function saveImageFile(filename: string, buffer: Buffer, token?: string): Promise<string> {
-  const localImagesDir = getLocalImagesDir();
-  const destPath = path.join(localImagesDir, filename);
-  await fs.promises.writeFile(destPath, buffer);
+  if (!isProductionEnv()) {
+    const localImagesDir = getLocalImagesDir();
+    const destPath = path.join(localImagesDir, filename);
+    await fs.promises.writeFile(destPath, buffer);
+    return `/images/posts/${filename}`;
+  }
 
-  if (process.env.NODE_ENV === 'production') {
-    const owner = process.env.GITHUB_REPO_OWNER || 'efzyn';
-    const repo = process.env.GITHUB_REPO_NAME || 'big3';
-    const targetPath = `public/images/posts/${filename}`;
+  const owner = getGithubOwner();
+  const repo = getGithubRepo();
+  const targetPath = `public/images/posts/${filename}`;
 
-    const payload = {
-      message: `feat(blog): upload image ${filename}`,
-      content: buffer.toString('base64'),
-    };
+  const payload = {
+    message: `feat(blog): upload image ${filename}`,
+    content: buffer.toString('base64'),
+  };
 
-    await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }, token);
+  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Gagal upload gambar ke GitHub: ${err.message || res.statusText}`);
   }
 
   return `/images/posts/${filename}`;
