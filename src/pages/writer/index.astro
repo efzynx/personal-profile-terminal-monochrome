@@ -1,15 +1,22 @@
 ---
-// Writer Login Page — Terminal Aesthetics with GitHub OAuth
+import { getSession } from '../../lib/auth';
 import { getProfileData } from '../../lib/cms';
-
-const profile = await getProfileData();
-const activeFavicon = profile.faviconUrl || "/favicon.svg";
-const isSvgFavicon = activeFavicon.endsWith('.svg');
 
 const session = getSession(Astro.cookies);
 if (session) {
   return Astro.redirect('/writer/dashboard');
 }
+
+let activeFavicon = "/favicon.svg";
+try {
+  const profile = await getProfileData();
+  if (profile?.faviconUrl) {
+    activeFavicon = profile.faviconUrl;
+  }
+} catch (e) {
+  console.error("Error loading profile for writer login favicon:", e);
+}
+const isSvgFavicon = activeFavicon.endsWith('.svg');
 
 const error = Astro.url.searchParams.get('error');
 let errorMessage = '';
