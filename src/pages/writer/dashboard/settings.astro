@@ -152,22 +152,10 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
         <!-- Header Block -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
             <div>
-                <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">Site Settings & Integrasi</h1>
-                <p class="font-mono text-xs text-muted mt-1">Konfigurasi ikon favicon situs dan integrasi Cloudinary OAuth Media Storage.</p>
+                <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">Site Settings & Favicon</h1>
+                <p class="font-mono text-xs text-muted mt-1">Konfigurasi ikon favicon dan pengelolaan aset media situs.</p>
             </div>
         </header>
-
-        {cloudinaryStatusParam === 'connected' && (
-            <div class="border p-4 font-mono text-xs bg-green-500/10 border-green-500/40 text-green-400">
-                [ SUCCESS ] Akun Cloudinary berhasil ditautkan via OAuth 2.0! Seluruh media gambar sekarang otomatis diunggah ke Cloudinary CDN.
-            </div>
-        )}
-
-        {cloudinaryStatusParam === 'error' && (
-            <div class="border p-4 font-mono text-xs bg-red-500/10 border-red-500/40 text-red-400">
-                [ ERROR ] Gagal menautkan akun Cloudinary via OAuth. Periksa kredensial CLOUDINARY_CLIENT_ID & SECRET di file .env.
-            </div>
-        )}
 
         <div id="alert-box" class="hidden border p-4 font-mono text-xs"></div>
 
@@ -220,44 +208,6 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                                 </li>
                             </ul>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Cloudinary OAuth 2.0 Media Storage Card -->
-            <div class="bg-surface border border-muted p-6 flex flex-col gap-4">
-                <div class="flex items-center justify-between border-b border-muted pb-2">
-                    <h2 class="font-mono text-base font-bold text-primary uppercase">&gt; Cloudinary OAuth Media Storage</h2>
-                    {profile.cloudinaryAccessToken ? (
-                        <span class="font-mono text-xs text-green-400 bg-green-500/10 border border-green-500/40 px-3 py-1">
-                            [ STATUS: CLOUDINARY TERHUBUNG VIA OAUTH ]
-                        </span>
-                    ) : (
-                        <span class="font-mono text-xs text-amber-400 bg-amber-500/10 border border-amber-500/40 px-3 py-1">
-                            [ STATUS: BELUM TERHUBUNG ]
-                        </span>
-                    )}
-                </div>
-
-                <div class="flex flex-col gap-4 font-mono text-xs">
-                    <p class="text-accent leading-relaxed">
-                        Tautkan akun Cloudinary Anda menggunakan <strong class="text-primary">OAuth 2.0 Protocol</strong> resmi untuk menyimpan foto profil, favicon, dan gambar postingan blog langsung ke CDN Cloudinary tanpa membebani repositori Git.
-                    </p>
-
-                    <div class="flex flex-wrap items-center gap-4">
-                        <a
-                            href="/api/auth/cloudinary/login"
-                            class="font-mono text-xs font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2.5 no-underline transition-colors cursor-[crosshair] flex items-center gap-2"
-                        >
-                            <span class="material-symbols-outlined text-sm">cloud_sync</span>
-                            <span>{profile.cloudinaryAccessToken ? '[ 🔄 RE-AUTH CLOUDINARY OAUTH ]' : '[ 🔗 TAUTKAN CLOUDINARY VIA OAUTH ]'}</span>
-                        </a>
-
-                        {profile.cloudinaryAccessToken && (
-                            <span class="text-muted text-xs">
-                                Cloud Name: <strong class="text-primary">{process.env.CLOUDINARY_CLOUD_NAME || 'efzyn'}</strong>
-                            </span>
-                        )}
                     </div>
                 </div>
             </div>

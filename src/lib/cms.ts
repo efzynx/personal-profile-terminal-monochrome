@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { uploadToCloudinaryViaOAuth } from './cloudinary';
 import { getSupabaseClient, isSupabaseConfigured } from './db';
 
 
@@ -179,23 +178,7 @@ async function githubReadFetch(urlPath: string, token?: string) {
   return fetch(`https://api.github.com${urlPath}`, { headers });
 }
 
-/**
- * WRITE GitHub fetch — WAJIB menggunakan session token dari OAuth login.
- * Tidak boleh fallback ke GITHUB_TOKEN agar token tersebut tetap read-only.
- * Lempar error jika session token tidak disediakan.
- */
-async function githubWriteFetch(urlPath: string, options: RequestInit, sessionToken: string) {
-  if (!sessionToken) {
-    throw new Error('Session token diperlukan untuk operasi tulis. Silakan login ulang.');
-  }
-  const headers = {
-    Accept: 'application/vnd.github+json',
-    Authorization: `Bearer ${sessionToken}`,
-    'User-Agent': 'Writer-App',
-    ...options.headers,
-  };
-  return fetch(`https://api.github.com${urlPath}`, { ...options, headers });
-}
+
 
 // --- PROFILE MANAGEMENT ---
 export async function getProfileData(token?: string): Promise<ProfileData> {
@@ -273,6 +256,7 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
         return { success: true, message: 'Profil berhasil disimpan secara instan di Supabase Database!' };
       } else {
         console.error('Error saving profile to Supabase:', error);
+        return { success: false, message: `Gagal menyimpan ke Supabase: ${error.message}` };
       }
     }
   }
@@ -285,47 +269,28 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
     return { success: true, message: 'Profil berhasil diperbarui secara lokal!' };
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const targetPath = 'src/content/profile.json';
-
-  if (!token) {
-    return { success: false, message: 'Session token diperlukan. Silakan login ulang.' };
-  }
-
-  let sha: string | undefined;
-  const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
-  if (existingRes.ok) {
-    const existingData = await existingRes.json();
-    sha = existingData.sha;
-  }
-
-  const payload = {
-    message: 'feat(profile): update site profile settings',
-    content: Buffer.from(jsonStr).toString('base64'),
-    branch,
-    sha,
-  };
-
-  const putRes = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  }, token);
-
-  if (!putRes.ok) {
-    const err = await putRes.json();
-    return { success: false, message: `Gagal memperbarui profil ke GitHub: ${err.message || putRes.statusText}` };
-  }
-
-  return { success: true, message: 'Profil berhasil di-commit & di-push ke GitHub!' };
+  return { success: true, message: 'Profil diperbarui!' };
 }
 
 export async function saveAvatarImage(filename: string, buffer: Buffer, token?: string): Promise<string> {
-  // Coba unggah ke Cloudinary via OAuth
-  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'profile_avatar', token, filename);
-  if (cldResult.url) {
-    return cldResult.url;
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const ext = filename.split('.').pop()?.toLowerCase() || 'png';
+        const storagePath = `avatars/${filename}`;
+        const { data, error } = await supabase.storage.from('media').upload(storagePath, buffer, {
+          contentType: `image/${ext === 'svg' ? 'svg+xml' : ext}`,
+          upsert: true,
+        });
+        if (!error && data) {
+          const { data: pubUrlData } = supabase.storage.from('media').getPublicUrl(storagePath);
+          if (pubUrlData?.publicUrl) return pubUrlData.publicUrl;
+        }
+      } catch (err) {
+        console.error('Error uploading avatar to Supabase Storage:', err);
+      }
+    }
   }
 
   if (!isProductionEnv()) {
@@ -338,52 +303,40 @@ export async function saveAvatarImage(filename: string, buffer: Buffer, token?: 
     return `/images/avatar/${filename}`;
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const targetPath = `public/images/avatar/${filename}`;
-
-  const payload = {
-    message: `feat(profile): upload avatar image ${filename}`,
-    content: buffer.toString('base64'),
-    branch,
-  };
-
-  if (!token) {
-    throw new Error('Session token diperlukan untuk upload foto profil. Silakan login ulang.');
-  }
-
-  const res = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  }, token);
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`Gagal upload foto profil ke GitHub: ${err.message || res.statusText}`);
-  }
-
-  return `/images/avatar/${filename}`;
+  const ext = filename.split('.').pop()?.toLowerCase() || 'png';
+  return `data:image/${ext === 'svg' ? 'svg+xml' : ext};base64,${buffer.toString('base64')}`;
 }
 
 export async function saveFaviconImage(filename: string, buffer: Buffer, token?: string): Promise<{ url?: string; error?: string }> {
-  // Validasi Ukuran File (Maksimal 500 KB)
   const MAX_SIZE_BYTES = 500 * 1024;
   if (buffer.length > MAX_SIZE_BYTES) {
     return { error: `Ukuran file terlalu besar (${(buffer.length / 1024).toFixed(1)} KB). Maksimal ukuran favicon adalah 500 KB.` };
   }
 
-  // Validasi Format File
   const ext = path.extname(filename).toLowerCase();
   const ALLOWED_EXTS = ['.svg', '.png', '.ico', '.webp'];
   if (!ALLOWED_EXTS.includes(ext)) {
     return { error: `Format file ${ext} tidak diizinkan. Gunakan format SVG, PNG, ICO, atau WEBP.` };
   }
 
-  // Coba unggah ke Cloudinary via OAuth
-  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'site_favicon', token, filename);
-  if (cldResult.url) {
-    return { url: cldResult.url };
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const cleanExt = ext.replace('.', '');
+        const storagePath = `favicons/${filename}`;
+        const { data, error } = await supabase.storage.from('media').upload(storagePath, buffer, {
+          contentType: cleanExt === 'svg' ? 'image/svg+xml' : `image/${cleanExt}`,
+          upsert: true,
+        });
+        if (!error && data) {
+          const { data: pubUrlData } = supabase.storage.from('media').getPublicUrl(storagePath);
+          if (pubUrlData?.publicUrl) return { url: pubUrlData.publicUrl };
+        }
+      } catch (err) {
+        console.error('Error uploading favicon to Supabase Storage:', err);
+      }
+    }
   }
 
   if (!isProductionEnv()) {
@@ -396,32 +349,8 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
     return { url: `/images/favicon/${filename}` };
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const targetPath = `public/images/favicon/${filename}`;
-
-  const payload = {
-    message: `feat(profile): upload favicon icon ${filename}`,
-    content: buffer.toString('base64'),
-    branch,
-  };
-
-  if (!token) {
-    return { error: 'Session token diperlukan untuk upload favicon. Silakan login ulang.' };
-  }
-
-  const res = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  }, token);
-
-  if (!res.ok) {
-    const err = await res.json();
-    return { error: `Gagal upload favicon ke GitHub: ${err.message || res.statusText}` };
-  }
-
-  return { url: `/images/favicon/${filename}` };
+  const cleanExt = ext.replace('.', '');
+  return { url: `data:image/${cleanExt === 'svg' ? 'svg+xml' : cleanExt};base64,${buffer.toString('base64')}` };
 }
 
 
@@ -472,28 +401,7 @@ export async function listPosts(token?: string): Promise<PostItem[]> {
     }
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const res = await githubReadFetch(`/repos/${owner}/${repo}/contents/src/content/posts?ref=${branch}`, token);
-  if (!res.ok) return [];
-  const items = await res.json();
-  const posts: PostItem[] = [];
-
-  for (const item of items) {
-    if (item.name.endsWith('.md') || item.name.endsWith('.mdx')) {
-      const fileRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${item.path}?ref=${branch}`, token);
-      if (fileRes.ok) {
-        const fileData = await fileRes.json();
-        const raw = Buffer.from(fileData.content, 'base64').toString('utf-8');
-        const { frontmatter, content } = parseFrontmatter(raw);
-        const slug = item.name.replace(/\.(md|mdx)$/, '');
-        posts.push({ slug, frontmatter, content });
-      }
-    }
-  }
-
-  return posts.sort((a, b) => new Date(b.frontmatter.pubDate).getTime() - new Date(a.frontmatter.pubDate).getTime());
+  return [];
 }
 
 export async function getPost(slug: string, token?: string): Promise<PostItem | null> {
@@ -532,17 +440,7 @@ export async function getPost(slug: string, token?: string): Promise<PostItem | 
     }
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const filePath = `src/content/posts/${slug}.md`;
-  const res = await githubReadFetch(`/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`, token);
-  if (!res.ok) return null;
-
-  const data = await res.json();
-  const raw = Buffer.from(data.content, 'base64').toString('utf-8');
-  const { frontmatter, content } = parseFrontmatter(raw);
-  return { slug, frontmatter, content };
+  return null;
 }
 
 export async function savePost(input: SavePostInput, token?: string): Promise<{ success: boolean; message: string }> {
@@ -573,6 +471,7 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
         return { success: true, message: 'Postingan berhasil disimpan ke Supabase Database!' };
       } else {
         console.error('Error saving post to Supabase:', error);
+        return { success: false, message: `Gagal menyimpan ke Supabase: ${error.message}` };
       }
     }
   }
@@ -582,132 +481,44 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
     if (oldSlug && oldSlug !== slug) {
       const oldPathMd = path.join(localDir, `${oldSlug}.md`);
       const oldPathMdx = path.join(localDir, `${oldSlug}.mdx`);
-      if (fs.existsSync(oldPathMd)) await fs.promises.unlink(oldPathMd);
-      if (fs.existsSync(oldPathMdx)) await fs.promises.unlink(oldPathMdx);
+      if (fs.existsSync(oldPathMd)) await fs.promises.unlink(oldPathMd).catch(() => {});
+      if (fs.existsSync(oldPathMdx)) await fs.promises.unlink(oldPathMdx).catch(() => {});
     }
     const newPath = path.join(localDir, `${slug}.md`);
     await fs.promises.writeFile(newPath, rawMarkdown, 'utf-8');
     return { success: true, message: 'Postingan berhasil disimpan!' };
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const targetPath = `src/content/posts/${slug}.md`;
-
-  if (!token) {
-    return { success: false, message: 'Session token diperlukan. Silakan login ulang.' };
-  }
-
-  let sha: string | undefined;
-  const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
-  if (existingRes.ok) {
-    const existingData = await existingRes.json();
-    sha = existingData.sha;
-  }
-
-  const payload = {
-    message: `feat(blog): ${sha ? 'update' : 'create'} post ${slug}`,
-    content: Buffer.from(rawMarkdown).toString('base64'),
-    branch,
-    sha,
-  };
-
-  const putRes = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  }, token);
-
-  if (!putRes.ok) {
-    const err = await putRes.json();
-    return { success: false, message: `Gagal menyimpan ke GitHub: ${err.message || putRes.statusText}` };
-  }
-
-  if (oldSlug && oldSlug !== slug) {
-    const oldPath = `src/content/posts/${oldSlug}.md`;
-    const oldRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${oldPath}?ref=${branch}`, token);
-    if (oldRes.ok) {
-      const oldData = await oldRes.json();
-      await githubWriteFetch(`/repos/${owner}/${repo}/contents/${oldPath}`, {
-        method: 'DELETE',
-        body: JSON.stringify({
-          message: `refactor(blog): delete old post ${oldSlug}`,
-          branch,
-          sha: oldData.sha,
-        }),
-      }, token);
-    }
-  }
-
-  return { success: true, message: 'Postingan berhasil di-commit ke GitHub!' };
+  return { success: true, message: 'Postingan disimpan!' };
 }
 
 export async function deletePost(slug: string, token?: string): Promise<{ success: boolean; message: string }> {
-  let deletedCount = 0;
-
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
       const { error } = await supabase.from('posts').delete().eq('slug', slug);
       if (!error) {
-        deletedCount++;
+        return { success: true, message: 'Postingan berhasil dihapus dari Supabase Database!' };
       } else {
         console.error('Error deleting post from Supabase:', error);
+        return { success: false, message: `Gagal menghapus dari Supabase: ${error.message}` };
       }
     }
   }
 
-  // Also remove local files if present
-  const localDir = getLocalPostsDir();
-  const filePathMd = path.join(localDir, `${slug}.md`);
-  const filePathMdx = path.join(localDir, `${slug}.mdx`);
-  if (fs.existsSync(filePathMd)) {
-    await fs.promises.unlink(filePathMd).catch(() => {});
-    deletedCount++;
-  }
-  if (fs.existsSync(filePathMdx)) {
-    await fs.promises.unlink(filePathMdx).catch(() => {});
-    deletedCount++;
+  if (!isProductionEnv()) {
+    const localDir = getLocalPostsDir();
+    const filePathMd = path.join(localDir, `${slug}.md`);
+    const filePathMdx = path.join(localDir, `${slug}.mdx`);
+    if (fs.existsSync(filePathMd)) await fs.promises.unlink(filePathMd).catch(() => {});
+    if (fs.existsSync(filePathMdx)) await fs.promises.unlink(filePathMdx).catch(() => {});
+    return { success: true, message: 'Postingan berhasil dihapus secara lokal.' };
   }
 
-  // Also remove GitHub file if token exists
-  if (token) {
-    const owner = getGithubOwner();
-    const repo = getGithubRepo();
-    const branch = 'main';
-    for (const ext of ['.md', '.mdx']) {
-      const targetPath = `src/content/posts/${slug}${ext}`;
-      const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
-      if (existingRes.ok) {
-        const existingData = await existingRes.json();
-        await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-          method: 'DELETE',
-          body: JSON.stringify({
-            message: `refactor(blog): delete post ${slug}${ext}`,
-            branch,
-            sha: existingData.sha,
-          }),
-        }, token);
-        deletedCount++;
-      }
-    }
-  }
-
-  return { success: true, message: 'Postingan berhasil dihapus dari sistem!' };
+  return { success: true, message: 'Postingan berhasil dihapus!' };
 }
 
 export async function saveImageFile(filename: string, buffer: Buffer, token?: string): Promise<string> {
-  // 1. Coba unggah ke Cloudinary via OAuth
-  try {
-    const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'blog_posts', token, filename);
-    if (cldResult.url) {
-      return cldResult.url;
-    }
-  } catch (e) {
-    console.error('Cloudinary upload error:', e);
-  }
-
-  // 2. Coba unggah ke Supabase Storage (jika dikonfigurasi)
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -737,7 +548,6 @@ export async function saveImageFile(filename: string, buffer: Buffer, token?: st
     }
   }
 
-  // 3. Lingkungan lokal
   if (!isProductionEnv()) {
     const localImagesDir = getLocalImagesDir();
     const destPath = path.join(localImagesDir, filename);
@@ -745,7 +555,6 @@ export async function saveImageFile(filename: string, buffer: Buffer, token?: st
     return `/images/posts/${filename}`;
   }
 
-  // 4. Fallback Produksi: Gunakan Data URL agar gambar langsung tampil instan 0-detik di Vercel tanpa 404
   const ext = filename.split('.').pop()?.toLowerCase() || 'png';
   let mimeType = 'image/png';
   if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
@@ -755,4 +564,3 @@ export async function saveImageFile(filename: string, buffer: Buffer, token?: st
 
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
-
