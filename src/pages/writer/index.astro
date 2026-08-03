@@ -1,6 +1,10 @@
 ---
 // Writer Login Page — Terminal Aesthetics with GitHub OAuth
-import { getSession } from '../../lib/auth';
+import { getProfileData } from '../../lib/cms';
+
+const profile = await getProfileData();
+const activeFavicon = profile.faviconUrl || "/favicon.svg";
+const isSvgFavicon = activeFavicon.endsWith('.svg');
 
 const session = getSession(Astro.cookies);
 if (session) {
@@ -25,6 +29,11 @@ if (error === 'unauthorized_user') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Writer Access — Ahmad Fauzan Adiman</title>
+    {isSvgFavicon ? (
+        <link rel="icon" type="image/svg+xml" href={activeFavicon} />
+    ) : (
+        <link rel="icon" href={activeFavicon} />
+    )}
 
     <script is:inline>
         (function () {
