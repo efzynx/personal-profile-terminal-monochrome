@@ -279,7 +279,7 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
 
 export async function saveAvatarImage(filename: string, buffer: Buffer, token?: string): Promise<string> {
   // Coba unggah ke Cloudinary via OAuth
-  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'profile_avatar', token);
+  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'profile_avatar', token, filename);
   if (cldResult.url) {
     return cldResult.url;
   }
@@ -337,7 +337,7 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
   }
 
   // Coba unggah ke Cloudinary via OAuth
-  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'site_favicon', token);
+  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'site_favicon', token, filename);
   if (cldResult.url) {
     return { url: cldResult.url };
   }
@@ -569,7 +569,7 @@ export async function deletePost(slug: string, token?: string): Promise<{ succes
 
 export async function saveImageFile(filename: string, buffer: Buffer, token?: string): Promise<string> {
   // Coba unggah ke Cloudinary via OAuth
-  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'blog_posts', token);
+  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'blog_posts', token, filename);
   if (cldResult.url) {
     return cldResult.url;
   }
