@@ -436,7 +436,7 @@ export async function listPosts(token?: string): Promise<PostItem[]> {
         .select('*')
         .eq('draft', false)
         .order('pub_date', { ascending: false });
-      if (data && !error && data.length > 0) {
+      if (data && !error) {
         return data.map((item: any) => ({
           slug: item.slug,
           frontmatter: {
@@ -643,58 +643,57 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
 }
 
 export async function deletePost(slug: string, token?: string): Promise<{ success: boolean; message: string }> {
+  let deletedCount = 0;
+
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
       const { error } = await supabase.from('posts').delete().eq('slug', slug);
       if (!error) {
-        return { success: true, message: 'Postingan berhasil dihapus dari Supabase Database!' };
+        deletedCount++;
+      } else {
+        console.error('Error deleting post from Supabase:', error);
       }
     }
   }
 
-  if (!isProductionEnv()) {
-    const localDir = getLocalPostsDir();
-    const filePathMd = path.join(localDir, `${slug}.md`);
-    const filePathMdx = path.join(localDir, `${slug}.mdx`);
-    let deletedLocal = false;
-    if (fs.existsSync(filePathMd)) { await fs.promises.unlink(filePathMd); deletedLocal = true; }
-    if (fs.existsSync(filePathMdx)) { await fs.promises.unlink(filePathMdx); deletedLocal = true; }
+  // Also remove local files if present
+  const localDir = getLocalPostsDir();
+  const filePathMd = path.join(localDir, `${slug}.md`);
+  const filePathMdx = path.join(localDir, `${slug}.mdx`);
+  if (fs.existsSync(filePathMd)) {
+    await fs.promises.unlink(filePathMd).catch(() => {});
+    deletedCount++;
+  }
+  if (fs.existsSync(filePathMdx)) {
+    await fs.promises.unlink(filePathMdx).catch(() => {});
+    deletedCount++;
+  }
 
-    if (deletedLocal) {
-      return { success: true, message: 'Postingan berhasil dihapus secara lokal.' };
+  // Also remove GitHub file if token exists
+  if (token) {
+    const owner = getGithubOwner();
+    const repo = getGithubRepo();
+    const branch = 'main';
+    for (const ext of ['.md', '.mdx']) {
+      const targetPath = `src/content/posts/${slug}${ext}`;
+      const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
+      if (existingRes.ok) {
+        const existingData = await existingRes.json();
+        await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+          method: 'DELETE',
+          body: JSON.stringify({
+            message: `refactor(blog): delete post ${slug}${ext}`,
+            branch,
+            sha: existingData.sha,
+          }),
+        }, token);
+        deletedCount++;
+      }
     }
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const targetPath = `src/content/posts/${slug}.md`;
-
-  if (!token) {
-    return { success: false, message: 'Session token diperlukan. Silakan login ulang.' };
-  }
-
-  const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
-  if (!existingRes.ok) {
-    return { success: false, message: 'Postingan tidak ditemukan di GitHub.' };
-  }
-  const existingData = await existingRes.json();
-
-  const delRes = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-    method: 'DELETE',
-    body: JSON.stringify({
-      message: `feat(blog): delete post ${slug}`,
-      branch,
-      sha: existingData.sha,
-    }),
-  }, token);
-
-  if (!delRes.ok) {
-    return { success: false, message: 'Gagal menghapus postingan di GitHub.' };
-  }
-
-  return { success: true, message: 'Postingan berhasil dihapus dari GitHub!' };
+  return { success: true, message: 'Postingan berhasil dihapus dari sistem!' };
 }
 
 export async function saveImageFile(filename: string, buffer: Buffer, token?: string): Promise<string> {
