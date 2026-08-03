@@ -9,6 +9,8 @@ if (!session) {
 
 let profile = await getProfileData(session.token);
 const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
+const activeFavicon = profile.faviconUrl || "/favicon.svg";
+const isSvgFavicon = activeFavicon.endsWith('.svg');
 ---
 
 <!doctype html>
@@ -17,6 +19,11 @@ const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Profile Settings — Writer Admin</title>
+    {isSvgFavicon ? (
+        <link rel="icon" type="image/svg+xml" href={activeFavicon} />
+    ) : (
+        <link rel="icon" href={activeFavicon} />
+    )}
 
     <script is:inline>
         (function () {

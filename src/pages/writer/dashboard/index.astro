@@ -1,16 +1,16 @@
 ---
 import { getSession } from '../../../lib/auth';
-import { listPosts } from '../../../lib/cms';
-
-import profileData from '../../../content/profile.json';
+import { listPosts, getProfileData } from '../../../lib/cms';
 
 const session = getSession(Astro.cookies);
 if (!session) {
   return Astro.redirect('/writer');
 }
 
-const promptPrefix = profileData.terminalPrompt || `${session.user}@tux`;
-
+const profile = await getProfileData(session.token);
+const activeFavicon = profile.faviconUrl || "/favicon.svg";
+const isSvgFavicon = activeFavicon.endsWith('.svg');
+const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
 
 let posts = [];
 let fetchError = '';
@@ -27,6 +27,11 @@ try {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Writer Dashboard — Ahmad Fauzan Adiman</title>
+    {isSvgFavicon ? (
+        <link rel="icon" type="image/svg+xml" href={activeFavicon} />
+    ) : (
+        <link rel="icon" href={activeFavicon} />
+    )}
 
     <script is:inline>
         (function () {
