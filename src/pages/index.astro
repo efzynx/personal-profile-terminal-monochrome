@@ -1,0 +1,141 @@
+---
+export const prerender = true;
+import BaseLayout from "@layouts/BaseLayout.astro";
+import profileData from "../content/profile.json";
+---
+
+
+<BaseLayout
+    title="Home"
+    description={`${profileData.name} — ${profileData.title}`}
+    breadcrumb="cd ~/"
+>
+    <div class="flex items-center justify-center min-h-[80vh]">
+        <div
+            class="w-full max-w-md border border-muted p-8 bg-surface flex flex-col gap-8"
+        >
+            <!-- Header / Identity -->
+            <div
+                class="flex flex-col md:flex-row gap-6 items-start md:items-center"
+            >
+                <!-- Avatar -->
+                <div
+                    class="w-20 h-20 shrink-0 border border-muted overflow-hidden bg-background grayscale contrast-125 brightness-90 hover:grayscale-0 transition-all duration-300"
+                >
+                    <img
+                        src={profileData.avatarUrl || "/saya.avif"}
+                        alt={profileData.name}
+                        class="w-full h-full object-cover"
+                        loading="eager"
+                        width="80"
+                        height="80"
+                    />
+                </div>
+                <!-- Identity Text -->
+                <div class="flex flex-col gap-3">
+                    <p class="font-mono text-sm text-accent">
+                        {profileData.terminalPrompt || "fauzan@tux"}:~$ <span class="text-primary">whoami</span>
+                    </p>
+
+                    <h1
+                        class="font-mono text-xl font-bold text-primary leading-snug"
+                    >
+                        {profileData.name}<span
+                            class="inline-block w-2 h-5 bg-primary align-middle ml-1 animate-pulse"
+                        ></span>
+                    </h1>
+                    <p
+                        class="font-sans text-sm text-accent leading-relaxed whitespace-pre-line"
+                    >
+                        {profileData.bio}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <hr class="border-muted" />
+
+            <!-- Navigation Menu -->
+            <nav class="flex flex-col gap-1" aria-label="Main navigation">
+                <a
+                    id="nav-portfolio"
+                    href="/portfolio"
+                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                >
+                    <span
+                        class="font-mono text-accent mr-3 group-hover:text-primary"
+                        >&gt;</span
+                    >
+                    <span
+                        class="font-mono text-sm text-text group-hover:text-primary"
+                        >[1] Portfolio</span
+                    >
+                </a>
+                <a
+                    id="nav-blog"
+                    href="/blog"
+                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                >
+                    <span
+                        class="font-mono text-accent mr-3 group-hover:text-primary"
+                        >&gt;</span
+                    >
+                    <span
+                        class="font-mono text-sm text-text group-hover:text-primary"
+                        >[2] Blog</span
+                    >
+                </a>
+                <a
+                    id="nav-project"
+                    href="/project"
+                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                >
+                    <span
+                        class="font-mono text-accent mr-3 group-hover:text-primary"
+                        >&gt;</span
+                    >
+                    <span
+                        class="font-mono text-sm text-text group-hover:text-primary"
+                        >[3] Project</span
+                    >
+                </a>
+                <a
+                    id="nav-sosmed"
+                    href="/sosmed"
+                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                >
+                    <span
+                        class="font-mono text-accent mr-3 group-hover:text-primary"
+                        >&gt;</span
+                    >
+                    <span
+                        class="font-mono text-sm text-text group-hover:text-primary"
+                        >[4] Sosial Media</span
+                    >
+                </a>
+                <a
+                    id="nav-writer"
+                    href="/writer"
+                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                >
+                    <span
+                        class="font-mono text-accent mr-3 group-hover:text-primary"
+                        >&gt;</span
+                    >
+                    <span
+                        class="font-mono text-sm text-text group-hover:text-primary"
+                        >[5] Settings (Admin)</span
+                    >
+                </a>
+            </nav>
+
+            <!-- Status Bar -->
+            <div
+                class="border-t border-muted pt-4 text-xs font-mono text-muted flex justify-between"
+            >
+                <span>STATUS: ONLINE</span>
+                <span>UPTIME: 99.9%</span>
+            </div>
+        </div>
+    </div>
+</BaseLayout>

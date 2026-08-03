@@ -1,0 +1,156 @@
+---
+// Writer Login Page — Terminal Aesthetics with GitHub OAuth
+import { getSession } from '../../lib/auth';
+
+const session = getSession(Astro.cookies);
+if (session) {
+  return Astro.redirect('/writer/dashboard');
+}
+
+const error = Astro.url.searchParams.get('error');
+let errorMessage = '';
+if (error === 'unauthorized_user') {
+  errorMessage = 'ACCESS DENIED: Username GitHub kamu tidak memiliki hak akses sebagai penulis.';
+} else if (error === 'invalid_token' || error === 'missing_code') {
+  errorMessage = 'AUTHENTICATION FAILED: Token OAuth tidak valid atau telah kedaluwarsa.';
+} else if (error === 'server_error') {
+  errorMessage = 'SYSTEM ERROR: Gagal menghubungi server autentikasi GitHub.';
+}
+---
+
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Writer Access — Ahmad Fauzan Adiman</title>
+
+    <script is:inline>
+        (function () {
+            var storedTheme = localStorage.getItem('theme') || 'system';
+            var isDark =
+                storedTheme === 'dark' ||
+                (storedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
+        rel="stylesheet"
+    />
+
+    <script is:inline src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script is:inline id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary:    "var(--color-primary)",
+                        background: "var(--color-background)",
+                        surface:    "var(--color-surface)",
+                        border:     "var(--color-border)",
+                        text:       "var(--color-text)",
+                        muted:      "var(--color-muted)",
+                        accent:     "var(--color-accent)",
+                    },
+                    fontFamily: {
+                        mono: ["JetBrains Mono", "monospace"],
+                        sans: ["IBM Plex Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px",
+                    },
+                },
+            },
+        };
+    </script>
+    <style is:global>
+        :root {
+            --color-background: #ffffff;
+            --color-surface: #f4f4f5;
+            --color-border: #e5e5e5;
+            --color-text: #18181b;
+            --color-muted: #71717a;
+            --color-accent: #52525b;
+            --color-primary: #000000;
+        }
+
+        html.dark {
+            --color-background: #000000;
+            --color-surface: #0a0a0a;
+            --color-border: #444444;
+            --color-text: #e0e0e0;
+            --color-muted: #666666;
+            --color-accent: #888888;
+            --color-primary: #ffffff;
+        }
+
+        body {
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: "JetBrains Mono", monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background text-text flex items-center justify-center px-4 py-12">
+    <main class="w-full max-w-md flex flex-col items-center gap-8">
+
+        <!-- Terminal header bar -->
+        <div class="w-full flex justify-between items-center text-accent font-mono text-xs uppercase tracking-widest border-b border-muted pb-2">
+            <span>&gt; writer_cms_v2.0</span>
+            <span class="text-primary font-bold">[ SECURED ]</span>
+        </div>
+
+        <!-- Login Box -->
+        <div class="w-full bg-surface border border-muted p-8 flex flex-col items-center gap-6">
+
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-2xl">terminal</span>
+                <h1 class="font-mono text-lg font-bold text-text uppercase tracking-wide">Writer Authentication</h1>
+            </div>
+
+            <p class="font-sans text-xs text-muted text-center leading-relaxed">
+                Portal khusus penulis untuk membuat, mengedit, dan menerbitkan artikel ke website Blog. Masuk menggunakan akun GitHub resmi.
+            </p>
+
+            {errorMessage && (
+                <div class="w-full border border-red-500/50 bg-red-500/10 text-red-400 p-3 font-mono text-xs leading-relaxed">
+                    [ERR] {errorMessage}
+                </div>
+            )}
+
+            <!-- GitHub OAuth Action Button -->
+            <a
+                href="/api/auth/login"
+                class="w-full font-mono text-sm font-bold text-text hover:text-primary border border-muted hover:border-primary bg-background hover:bg-surface px-6 py-4 transition-colors duration-0 cursor-[crosshair] flex items-center justify-center gap-3 group text-center no-underline"
+            >
+                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                <span>[ EXECUTE GITHUB AUTH ]</span>
+            </a>
+
+            <div class="text-[11px] font-mono text-accent">
+                Allowed User: <span class="text-primary font-bold">{process.env.GITHUB_ALLOWED_USER || 'efzyn'}</span>
+            </div>
+        </div>
+
+        <!-- Back to blog link -->
+        <a
+            href="/blog"
+            class="font-mono text-xs text-accent hover:text-text transition-colors duration-0 cursor-[crosshair] flex items-center gap-2"
+        >
+            &lt;-- cd ~/blog
+        </a>
+    </main>
+</body>
+</html>

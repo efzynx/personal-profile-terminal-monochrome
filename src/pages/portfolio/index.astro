@@ -1,0 +1,204 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import profileData from "../../content/profile.json";
+
+interface Repo {
+    id: number;
+    name: string;
+    description: string | null;
+    html_url: string;
+    language: string | null;
+    stargazers_count: number;
+    updated_at: string;
+    topics: string[];
+}
+
+const githubToken = process.env.GITHUB_TOKEN;
+const githubHeaders: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+};
+if (githubToken) {
+    githubHeaders["Authorization"] = `Bearer ${githubToken}`;
+}
+
+let repos: Repo[] = [];
+let fetchError = false;
+
+try {
+    const res = await fetch(
+        "https://api.github.com/users/efzynx/repos?sort=updated&per_page=4&type=public",
+        { headers: githubHeaders }
+    );
+    if (res.ok) {
+        repos = await res.json();
+    } else {
+        fetchError = true;
+    }
+} catch {
+    fetchError = true;
+}
+
+function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "today";
+    if (days === 1) return "yesterday";
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    return `${Math.floor(months / 12)}y ago`;
+}
+
+const skills = profileData.skills || [];
+
+type Level = "low" | "medium" | "high";
+
+const levelBorder: Record<Level, string> = {
+    low:    "group-hover:border-rose-700",
+    medium: "group-hover:border-amber-600",
+    high:   "group-hover:border-emerald-700",
+};
+const levelText: Record<Level, string> = {
+    low:    "text-rose-400",
+    medium: "text-amber-400",
+    high:   "text-emerald-400",
+};
+---
+
+<BaseLayout
+    title="Portfolio"
+    description={`Portfolio proyek ${profileData.name} — ${profileData.title}`}
+    breadcrumb="cd ~/portfolio"
+    backHref="/"
+    backLabel="cd ~/"
+>
+    <!-- Page Header -->
+    <header class="border-b border-muted pb-4">
+        <p class="font-mono text-sm text-accent">
+            {profileData.terminalPrompt || "fauzan@tux"}:~$ <span class="text-text">git log --oneline -4 github/efzynx</span>
+        </p>
+
+    </header>
+
+    <!-- Layout: Sidebar + Grid -->
+    <div class="flex flex-col md:flex-row gap-8">
+        <!-- Sidebar: whoami + skills -->
+        <aside class="w-full md:w-52 shrink-0 flex flex-col gap-6">
+            <!-- Avatar -->
+            <div
+                class="w-24 h-24 sm:w-32 sm:h-32 md:w-full aspect-square shrink-0 border border-muted overflow-hidden bg-background grayscale contrast-125 brightness-90 hover:grayscale-0 transition-all duration-300"
+            >
+                <img
+                    src={profileData.avatarUrl || "/me.avif"}
+                    alt={profileData.name}
+                    class="w-full h-full object-cover"
+                    loading="eager"
+                    width="208"
+                    height="208"
+                />
+            </div>
+
+            <!-- whoami -->
+            <div>
+                <p
+                    class="font-mono text-xs text-accent uppercase tracking-widest mb-3"
+                >
+                    &gt; whoami
+                </p>
+                <p class="font-sans text-sm text-text leading-relaxed whitespace-pre-line">
+                    {profileData.portfolioBio || profileData.bio}
+                </p>
+            </div>
+
+            <!-- Skills -->
+            <div>
+                <p
+                    class="font-mono text-xs text-accent uppercase tracking-widest mb-3"
+                >
+                    &gt; ls skills/
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    {
+                        skills.map((skill: { name: string; level: string }) => (
+                            <div
+                                class={`group relative border border-muted bg-surface px-3 py-1.5 cursor-default transition-colors duration-150 ${levelBorder[(skill.level as Level) || 'medium']}`}
+                            >
+                                <!-- Default: nama skill -->
+                                <span class="font-mono text-xs text-text group-hover:opacity-0 transition-opacity duration-100 whitespace-nowrap">
+                                    [{skill.name}]
+                                </span>
+                                <!-- Hover: level label -->
+                                <span
+                                    class={`font-mono text-xs absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-100 font-bold tracking-widest uppercase ${levelText[(skill.level as Level) || 'medium']}`}
+                                >
+                                    {skill.level}
+                                </span>
+                            </div>
+                        ))
+                    }
+                </div>
+            </div>
+        </aside>
+
+        <!-- Project Cards Grid -->
+        <section class="flex-1">
+            {fetchError ? (
+                <div class="font-mono text-sm text-muted border border-dashed border-muted px-4 py-8 text-center">
+                    <p class="text-accent mb-2">[ERROR]</p>
+                    <p>Gagal mengambil data repo dari GitHub. Coba refresh halaman.</p>
+                </div>
+            ) : (
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {repos.map((repo) => (
+                        <article
+                            id={`repo-${repo.name}`}
+                            class="group border border-muted bg-surface hover:border-primary transition-colors duration-0 flex flex-col p-5 min-h-[200px] relative cursor-[crosshair]"
+                        >
+                            <div class="flex-1">
+                                <h2 class="font-mono text-base font-bold text-text group-hover:text-primary transition-colors duration-0 mb-2">
+                                    {repo.name}
+                                </h2>
+                                <p class="font-sans text-sm text-accent line-clamp-2 leading-relaxed">
+                                    {repo.description ?? "No description provided."}
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-3 mb-6">
+                                {repo.language && (
+                                    <span class="font-mono text-xs text-muted border border-muted px-2 py-0.5">{repo.language}</span>
+                                )}
+                                {repo.topics.slice(0, 3).map((tag) => (
+                                    <span class="font-mono text-xs text-muted">[{tag}]</span>
+                                ))}
+                            </div>
+                            <!-- Metadata bottom row -->
+                            <div class="flex items-center justify-between">
+                                <span class="font-mono text-xs text-muted">
+                                    ★ {repo.stargazers_count} · {timeAgo(repo.updated_at)}
+                                </span>
+                                <a
+                                    href={`/project/github/${repo.name}`}
+                                    class="font-mono text-xs text-accent group-hover:text-primary transition-colors duration-0 uppercase tracking-wider"
+                                >
+                                    [readme →]
+                                </a>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            )}
+
+            <!-- Footer link -->
+            <div class="mt-4 font-mono text-xs text-muted flex justify-between items-center border-t border-dashed border-muted pt-4">
+                <span>source: github.com/efzynx</span>
+                <a
+                    href="https://github.com/efzynx"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-accent hover:text-primary transition-colors duration-0"
+                >
+                    [view all repos →]
+                </a>
+            </div>
+        </section>
+    </div>
+</BaseLayout>

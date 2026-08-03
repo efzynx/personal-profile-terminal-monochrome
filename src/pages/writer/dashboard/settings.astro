@@ -1,0 +1,555 @@
+---
+import { getSession } from '../../../lib/auth';
+import { getProfileData } from '../../../lib/cms';
+
+const session = getSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect('/writer');
+}
+
+let profile = await getProfileData(session.token);
+const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
+---
+
+
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Site Settings & Profile — Writer Admin</title>
+
+    <script is:inline>
+        (function () {
+            var storedTheme = localStorage.getItem('theme') || 'system';
+            var isDark =
+                storedTheme === 'dark' ||
+                (storedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
+        rel="stylesheet"
+    />
+
+    <script is:inline src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script is:inline id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary:    "var(--color-primary)",
+                        background: "var(--color-background)",
+                        surface:    "var(--color-surface)",
+                        border:     "var(--color-border)",
+                        text:       "var(--color-text)",
+                        muted:      "var(--color-muted)",
+                        accent:     "var(--color-accent)",
+                    },
+                    fontFamily: {
+                        mono: ["JetBrains Mono", "monospace"],
+                        sans: ["IBM Plex Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px",
+                    },
+                },
+            },
+        };
+    </script>
+    <style is:global>
+        :root {
+            --color-background: #ffffff;
+            --color-surface: #f4f4f5;
+            --color-border: #e5e5e5;
+            --color-text: #18181b;
+            --color-muted: #71717a;
+            --color-accent: #52525b;
+            --color-primary: #000000;
+        }
+
+        html.dark {
+            --color-background: #000000;
+            --color-surface: #0a0a0a;
+            --color-border: #444444;
+            --color-text: #e0e0e0;
+            --color-muted: #666666;
+            --color-accent: #888888;
+            --color-primary: #ffffff;
+        }
+
+        body {
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: "JetBrains Mono", monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-10">
+    <div class="w-full max-w-5xl flex flex-col gap-6">
+
+        <!-- Top Nav Bar -->
+        <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm border-b border-muted pb-4">
+            <div class="flex items-center gap-2 text-accent">
+                <span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+                <span>{promptPrefix}:~$</span>
+
+                <span class="text-primary font-bold">cd ~/writer/settings</span>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs">
+                <div class="flex items-center gap-2 text-accent border border-muted px-3 py-1">
+                    {session.avatarUrl && <img src={session.avatarUrl} alt="User" class="w-4 h-4 rounded-full" />}
+                    <span>user: <strong class="text-primary">{session.user}</strong></span>
+                </div>
+
+                <a
+                    href="/api/auth/logout"
+                    class="font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1 no-underline transition-colors cursor-[crosshair]"
+                >
+                    [ LOGOUT ]
+                </a>
+            </div>
+        </nav>
+
+        <!-- Admin Sub-Menu Tabs -->
+        <div class="flex items-center gap-2 font-mono text-xs border-b border-muted pb-2">
+            <a
+                href="/writer/dashboard"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ 📝 Blog Posts CMS ]
+            </a>
+            <a
+                href="/writer/dashboard/settings"
+                class="px-4 py-2 text-primary font-bold bg-surface border border-muted no-underline cursor-[crosshair]"
+            >
+                [ ⚙️ Site & Profile Settings ]
+            </a>
+        </div>
+
+        <!-- Header Block -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
+            <div>
+                <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">Site Settings & Profile</h1>
+                <p class="font-mono text-xs text-muted mt-1">Atur nama, bio "Who Am I", foto profil, favicon ikon situs, dan daftar skill Anda.</p>
+            </div>
+
+            <button
+                type="submit"
+                form="settings-form"
+                id="btn-save-settings"
+                class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-6 py-2.5 transition-colors cursor-[crosshair] flex items-center gap-2 shrink-0"
+            >
+                <span class="material-symbols-outlined text-base">save</span>
+                <span>[ SAVE PROFILE SETTINGS ]</span>
+            </button>
+        </header>
+
+        <div id="alert-box" class="hidden border p-4 font-mono text-xs"></div>
+
+        <!-- Form Settings -->
+        <form id="settings-form" class="flex flex-col gap-6">
+
+            <!-- Profile Info Card -->
+            <div class="bg-surface border border-muted p-6 flex flex-col gap-6">
+                <h2 class="font-mono text-base font-bold text-primary border-b border-muted pb-2 uppercase">&gt; Profile Identity</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-6 items-start">
+                    <!-- Avatar Preview & Upload -->
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="w-32 h-32 border border-muted overflow-hidden bg-background grayscale hover:grayscale-0 transition-all">
+                            <img
+                                id="avatar-preview"
+                                src={profile.avatarUrl || '/saya.avif'}
+                                alt="Profile Avatar"
+                                class="w-full h-full object-cover"
+                            />
+                        </div>
+                        <input type="hidden" id="avatarUrl" value={profile.avatarUrl || '/saya.avif'} />
+                        <button
+                            type="button"
+                            id="btn-upload-avatar"
+                            class="w-full font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-2 py-1.5 cursor-[crosshair] text-center"
+                        >
+                            [ UPLOAD FOTO ]
+                        </button>
+                        <input type="file" id="avatar-file-input" accept="image/*" class="hidden" />
+                    </div>
+
+                    <!-- Identity Inputs -->
+                    <div class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-1">
+                            <label for="name" class="font-mono text-xs text-accent font-bold">NAMA LENGKAP *</label>
+                            <input
+                                type="text"
+                                id="name"
+                                required
+                                value={profile.name}
+                                placeholder="Ahmad Fauzan Adiman"
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                            />
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="title" class="font-mono text-xs text-accent font-bold">PROFESI / TAGLINE</label>
+                            <input
+                                type="text"
+                                id="title"
+                                value={profile.title}
+                                placeholder="Backend Developer & DevOps Enthusiast"
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                            />
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="terminalPrompt" class="font-mono text-xs text-accent font-bold">TERMINAL PROMPT PREFIX (CONTOH: user@tux / dev@laptop)</label>
+                            <input
+                                type="text"
+                                id="terminalPrompt"
+                                value={profile.terminalPrompt || 'fauzan@tux'}
+                                placeholder="fauzan@tux"
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                            />
+                        </div>
+
+
+                        <div class="flex flex-col gap-1">
+                            <label for="bio" class="font-mono text-xs text-accent font-bold">HOMEPAGE BIO ("WHO AM I")</label>
+                            <textarea
+                                id="bio"
+                                rows="3"
+                                placeholder="Tulis deskripsi singkat yang akan tampil di halaman Homepage..."
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text p-3 resize-y leading-relaxed"
+                            >{profile.bio}</textarea>
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="portfolioBio" class="font-mono text-xs text-accent font-bold">PORTFOLIO BIO</label>
+                            <textarea
+                                id="portfolioBio"
+                                rows="2"
+                                placeholder="Tulis deskripsi singkat untuk sidebar halaman Portfolio..."
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text p-3 resize-y leading-relaxed"
+                            >{profile.portfolioBio}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Favicon / Site Icon Card -->
+            <div class="bg-surface border border-muted p-6 flex flex-col gap-6">
+                <h2 class="font-mono text-base font-bold text-primary border-b border-muted pb-2 uppercase">&gt; Custom Favicon / Site Icon</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-6 items-start">
+                    <!-- Favicon Preview & Upload Button -->
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="w-20 h-20 border border-muted p-3 flex items-center justify-center bg-background">
+                            <img
+                                id="favicon-preview"
+                                src={profile.faviconUrl || '/favicon.svg'}
+                                alt="Site Favicon"
+                                class="w-12 h-12 object-contain"
+                            />
+                        </div>
+                        <input type="hidden" id="faviconUrl" value={profile.faviconUrl || '/favicon.svg'} />
+                        <button
+                            type="button"
+                            id="btn-upload-favicon"
+                            class="w-full font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-2 py-1.5 cursor-[crosshair] text-center"
+                        >
+                            [ UPLOAD FAVICON ]
+                        </button>
+                        <input type="file" id="favicon-file-input" accept=".svg,.png,.ico,.webp" class="hidden" />
+                    </div>
+
+                    <!-- Recommended Guidance & Constraints Box -->
+                    <div class="flex flex-col gap-3 font-mono text-xs">
+                        <div class="border border-muted bg-background p-4 flex flex-col gap-2">
+                            <p class="text-primary font-bold uppercase tracking-wider flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">info</span>
+                                💡 Petunjuk Format & Rekomendasi Optimal:
+                            </p>
+                            <ul class="list-disc list-inside text-accent space-y-1.5 leading-relaxed pl-1">
+                                <li>
+                                    <strong class="text-primary">Format Rekomendasi Utama (Paling Optimal)</strong>: <code class="bg-surface px-1 text-primary">SVG</code> (Vector - selalu tajam di layar Retina/4K, super ringan &lt; 5 KB).
+                                </li>
+                                <li>
+                                    <strong class="text-primary">Format Rekomendasi Alternatif</strong>: <code class="bg-surface px-1 text-primary">PNG</code> transparan dengan dimensi <code class="bg-surface px-1 text-primary">32x32</code>, <code class="bg-surface px-1 text-primary">64x64</code>, atau <code class="bg-surface px-1 text-primary">128x128</code> px.
+                                </li>
+                                <li>
+                                    <strong class="text-primary">Format Diizinkan</strong>: <code class="bg-surface px-1 text-accent">.svg</code>, <code class="bg-surface px-1 text-accent">.png</code>, <code class="bg-surface px-1 text-accent">.ico</code>, <code class="bg-surface px-1 text-accent">.webp</code>.
+                                </li>
+                                <li>
+                                    <strong class="text-red-400">Batasan Maksimal Ukuran File</strong>: Maksimal <strong class="text-red-400">500 KB</strong> (0.5 MB). File lebih besar akan ditolak otomatis oleh sistem.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills Card -->
+            <div class="bg-surface border border-muted p-6 flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-muted pb-2">
+                    <h2 class="font-mono text-base font-bold text-primary uppercase">&gt; Tech Skills Management</h2>
+                    <button
+                        type="button"
+                        id="btn-add-skill"
+                        class="font-mono text-xs text-primary hover:bg-background border border-primary px-3 py-1 cursor-[crosshair]"
+                    >
+                        + Add Skill
+                    </button>
+                </div>
+
+                <div id="skills-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {profile.skills.map((skill, index) => (
+                        <div class="skill-item flex items-center justify-between gap-2 border border-muted bg-background p-2">
+                            <input
+                                type="text"
+                                value={skill.name}
+                                placeholder="Skill Name"
+                                class="skill-name bg-transparent border-0 font-mono text-xs text-text focus:ring-0 px-1 py-0.5 flex-1 w-24"
+                            />
+                            <select
+                                class="skill-level bg-surface border border-muted font-mono text-xs text-accent px-1 py-0.5 focus:ring-0 cursor-pointer"
+                            >
+                                <option value="low" selected={skill.level === 'low'}>low</option>
+                                <option value="medium" selected={skill.level === 'medium'}>medium</option>
+                                <option value="high" selected={skill.level === 'high'}>high</option>
+                            </select>
+                            <button
+                                type="button"
+                                class="btn-remove-skill font-mono text-xs text-red-400 hover:text-red-300 px-1 cursor-[crosshair]"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Client Script -->
+    <script is:inline>
+        document.addEventListener('DOMContentLoaded', function () {
+            var btnUploadAvatar = document.getElementById('btn-upload-avatar');
+            var avatarFileInput = document.getElementById('avatar-file-input');
+            var avatarPreview = document.getElementById('avatar-preview');
+            var avatarUrlInput = document.getElementById('avatarUrl');
+
+            var btnUploadFavicon = document.getElementById('btn-upload-favicon');
+            var faviconFileInput = document.getElementById('favicon-file-input');
+            var faviconPreview = document.getElementById('favicon-preview');
+            var faviconUrlInput = document.getElementById('faviconUrl');
+
+            var settingsForm = document.getElementById('settings-form');
+            var btnSaveSettings = document.getElementById('btn-save-settings');
+            var alertBox = document.getElementById('alert-box');
+            var btnAddSkill = document.getElementById('btn-add-skill');
+            var skillsList = document.getElementById('skills-list');
+
+            // Avatar Upload
+            btnUploadAvatar.addEventListener('click', function () {
+                avatarFileInput.click();
+            });
+
+            avatarFileInput.addEventListener('change', async function () {
+                var file = avatarFileInput.files[0];
+                if (!file) return;
+
+                btnUploadAvatar.disabled = true;
+                btnUploadAvatar.innerText = '[ UPLOADING... ]';
+
+                var formData = new FormData();
+                formData.append('avatar', file);
+
+                try {
+                    var res = await fetch('/api/profile', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    var data = await res.json();
+
+                    if (res.ok && data.avatarUrl) {
+                        avatarPreview.src = data.avatarUrl;
+                        avatarUrlInput.value = data.avatarUrl;
+                        alert('Foto profil berhasil diunggah!');
+                    } else {
+                        alert('Gagal mengunggah foto profil: ' + (data.error || 'Unknown error'));
+                    }
+                } catch (err) {
+                    alert('Error koneksi saat upload foto profil.');
+                } finally {
+                    btnUploadAvatar.disabled = false;
+                    btnUploadAvatar.innerText = '[ UPLOAD FOTO ]';
+                    avatarFileInput.value = '';
+                }
+            });
+
+            // Favicon Upload
+            btnUploadFavicon.addEventListener('click', function () {
+                faviconFileInput.click();
+            });
+
+            faviconFileInput.addEventListener('change', async function () {
+                var file = faviconFileInput.files[0];
+                if (!file) return;
+
+                // Client-side File Size Validation (500 KB Limit)
+                var MAX_BYTES = 500 * 1024;
+                if (file.size > MAX_BYTES) {
+                    alert('Ukuran file terlalu besar (' + (file.size / 1024).toFixed(1) + ' KB). Maksimal ukuran favicon yang diizinkan adalah 500 KB.');
+                    faviconFileInput.value = '';
+                    return;
+                }
+
+                btnUploadFavicon.disabled = true;
+                btnUploadFavicon.innerText = '[ UPLOADING... ]';
+
+                var formData = new FormData();
+                formData.append('favicon', file);
+
+                try {
+                    var res = await fetch('/api/profile', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    var data = await res.json();
+
+                    if (res.ok && data.faviconUrl) {
+                        faviconPreview.src = data.faviconUrl;
+                        faviconUrlInput.value = data.faviconUrl;
+                        alert('Favicon situs berhasil diunggah!');
+                    } else {
+                        alert('Gagal mengunggah favicon: ' + (data.error || 'Unknown error'));
+                    }
+                } catch (err) {
+                    alert('Error koneksi saat upload favicon.');
+                } finally {
+                    btnUploadFavicon.disabled = false;
+                    btnUploadFavicon.innerText = '[ UPLOAD FAVICON ]';
+                    faviconFileInput.value = '';
+                }
+            });
+
+            // Skills Dynamic Rows
+            function attachRemoveSkillListener(btn) {
+                btn.addEventListener('click', function () {
+                    var item = btn.closest('.skill-item');
+                    if (item) item.remove();
+                });
+            }
+
+            document.querySelectorAll('.btn-remove-skill').forEach(attachRemoveSkillListener);
+
+            btnAddSkill.addEventListener('click', function () {
+                var div = document.createElement('div');
+                div.className = 'skill-item flex items-center justify-between gap-2 border border-muted bg-background p-2';
+                div.innerHTML = `
+                    <input
+                        type="text"
+                        placeholder="Skill Name"
+                        class="skill-name bg-transparent border-0 font-mono text-xs text-text focus:ring-0 px-1 py-0.5 flex-1 w-24"
+                    />
+                    <select
+                        class="skill-level bg-surface border border-muted font-mono text-xs text-accent px-1 py-0.5 focus:ring-0 cursor-pointer"
+                    >
+                        <option value="low">low</option>
+                        <option value="medium" selected>medium</option>
+                        <option value="high">high</option>
+                    </select>
+                    <button
+                        type="button"
+                        class="btn-remove-skill font-mono text-xs text-red-400 hover:text-red-300 px-1 cursor-[crosshair]"
+                    >
+                        ✕
+                    </button>
+                `;
+                skillsList.appendChild(div);
+                var removeBtn = div.querySelector('.btn-remove-skill');
+                if (removeBtn) attachRemoveSkillListener(removeBtn);
+            });
+
+            // Form Submit
+            settingsForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                btnSaveSettings.disabled = true;
+                btnSaveSettings.innerText = '[ SAVING... ]';
+                alertBox.classList.add('hidden');
+
+                var name = document.getElementById('name').value.trim();
+                var title = document.getElementById('title').value.trim();
+                var terminalPrompt = document.getElementById('terminalPrompt').value.trim();
+                var bio = document.getElementById('bio').value.trim();
+                var portfolioBio = document.getElementById('portfolioBio').value.trim();
+                var avatarUrl = avatarUrlInput.value;
+                var faviconUrl = faviconUrlInput.value;
+
+                var skillItems = document.querySelectorAll('.skill-item');
+                var skills = [];
+                skillItems.forEach(function (item) {
+                    var skillName = item.querySelector('.skill-name').value.trim();
+                    var skillLevel = item.querySelector('.skill-level').value;
+                    if (skillName) {
+                        skills.push({ name: skillName, level: skillLevel });
+                    }
+                });
+
+                var payload = {
+                    name: name,
+                    title: title,
+                    terminalPrompt: terminalPrompt,
+                    bio: bio,
+                    portfolioBio: portfolioBio,
+                    avatarUrl: avatarUrl,
+                    faviconUrl: faviconUrl,
+                    skills: skills,
+                };
+
+
+                try {
+                    var res = await fetch('/api/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    var data = await res.json();
+
+                    if (res.ok && data.success) {
+                        alertBox.className = 'border border-green-500/50 bg-green-500/10 text-green-400 p-4 font-mono text-xs';
+                        alertBox.innerText = '[ SUCCESS ] ' + (data.message || 'Profil berhasil disimpan!');
+                        alertBox.classList.remove('hidden');
+
+                        setTimeout(function () {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
+                        alertBox.innerText = '[ ERR ] ' + (data.error || 'Gagal menyimpan profil');
+                        alertBox.classList.remove('hidden');
+                        btnSaveSettings.disabled = false;
+                        btnSaveSettings.innerText = '[ SAVE PROFILE SETTINGS ]';
+                    }
+                } catch (err) {
+                    alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
+                    alertBox.innerText = '[ ERR ] Terjadi kesalahan jaringan saat menyimpan profil.';
+                    alertBox.classList.remove('hidden');
+                    btnSaveSettings.disabled = false;
+                    btnSaveSettings.innerText = '[ SAVE PROFILE SETTINGS ]';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

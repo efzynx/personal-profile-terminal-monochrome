@@ -1,0 +1,93 @@
+---
+export const prerender = true;
+import BaseLayout from "@layouts/BaseLayout.astro";
+import profileData from "../../content/profile.json";
+
+const socials = [
+    {
+        id: "sm-linkedin",
+        platform: "linkedin",
+        label: "LinkedIn",
+        handle: "in/efzyn",
+        href: "https://linkedin.com/in/efzyn",
+        desc: "Koneksi profesional & karier",
+    },
+    {
+        id: "sm-instagram",
+        platform: "instagram",
+        label: "Instagram",
+        handle: "@efzynx",
+        href: "https://instagram.com/efzyn_",
+        desc: "Foto & momen sehari-hari",
+    },
+    {
+        id: "sm-tiktok",
+        platform: "tiktok",
+        label: "TikTok",
+        handle: "@efzynx",
+        href: "https://tiktok.com/@efzynx",
+        desc: "Video singkat & konten",
+    },
+    {
+        id: "sm-youtube",
+        platform: "youtube",
+        label: "YouTube",
+        handle: "@efzynx",
+        href: "https://youtube.com/@efzynx",
+        desc: "Video panjang & tutorial",
+    },
+    {
+        id: "sm-email",
+        platform: "email",
+        label: "Email",
+        handle: "me@efzyn.my.id",
+        href: "mailto:me@efzyn.my.id",
+        desc: "Hubungi langsung via email",
+    },
+];
+---
+
+<BaseLayout
+    title="Sosial Media"
+    description={`Temukan ${profileData.name} di berbagai platform sosial media`}
+    breadcrumb="cd ~/sosmed"
+    backHref="/"
+    backLabel="cd ~/"
+>
+    <header class="border-b border-muted pb-4">
+        <p class="font-mono text-sm text-accent">
+            {profileData.terminalPrompt || "user@tux"}:~$ <span class="text-text">ls -la sosmed/</span>
+        </p>
+    </header>
+
+    <div class="flex flex-col">
+        {
+            socials.map((s, i) => (
+                <a
+                    id={s.id}
+                    href={s.href}
+                    target={s.platform === "email" ? "_self" : "_blank"}
+                    rel={
+                        s.platform === "email"
+                            ? undefined
+                            : "noopener noreferrer"
+                    }
+                    class="terminal-hover group grid grid-cols-1 md:grid-cols-[40px_140px_1fr_auto] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
+                >
+                    <div class="font-mono text-sm text-accent self-center">
+                        {String(i + 1).padStart(2, "0")}.
+                    </div>
+                    <div class="font-mono text-sm font-bold text-muted self-center tracking-wider uppercase">
+                        [{s.label}]
+                    </div>
+                    <div class="font-sans text-sm text-text self-center title-text group-hover:text-primary transition-colors duration-0">
+                        {s.desc}
+                    </div>
+                    <div class="font-mono text-xs text-accent self-center group-hover:text-primary transition-colors duration-0">
+                        {s.handle}
+                    </div>
+                </a>
+            ))
+        }
+    </div>
+</BaseLayout>

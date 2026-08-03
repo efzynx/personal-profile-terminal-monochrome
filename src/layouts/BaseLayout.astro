@@ -1,0 +1,307 @@
+---
+/**
+ * BaseLayout.astro — Single Unified App Layout
+ * src/layouts/BaseLayout.astro
+ *
+ * Props:
+ *   title        — Page <title> text
+ *   description  — Meta description
+ *   breadcrumb   — e.g. "cd ~/blog"
+ *   showFooter   — Show prev/next pagination footer (default false)
+ *   backHref     — Optional: href for back button (cd ..)
+ *   backLabel    — Optional: label for back button (default "cd ..")
+ */
+interface Props {
+    title: string;
+    description?: string;
+    breadcrumb?: string;
+    showFooter?: boolean;
+    backHref?: string;
+    backLabel?: string;
+}
+
+const {
+    title,
+    description = "Ahmad Fauzan Adiman — Backend Developer & DevOps Enthusiast",
+    breadcrumb = "cd ~/",
+    showFooter = false,
+    backHref,
+    backLabel = "cd ..",
+} = Astro.props;
+
+import profileData from "../content/profile.json";
+
+const activeFavicon = profileData.faviconUrl || "/favicon.svg";
+const isSvgFavicon = activeFavicon.endsWith('.svg');
+---
+
+
+
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description" content={description} />
+        <title>{title} — Ahmad Fauzan Adiman</title>
+
+        <!-- Early Theme Initialization Script (Anti-FOUC) -->
+        <script is:inline>
+            (function () {
+                var storedTheme = localStorage.getItem('theme') || 'system';
+                var isDark =
+                    storedTheme === 'dark' ||
+                    (storedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            })();
+        </script>
+
+        <!-- Favicon -->
+        {isSvgFavicon ? (
+            <link rel="icon" type="image/svg+xml" href={activeFavicon} />
+        ) : (
+            <link rel="icon" href={activeFavicon} />
+        )}
+        <link rel="shortcut icon" href={activeFavicon} />
+
+
+        <!-- Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
+            rel="stylesheet"
+        />
+
+        <!-- Tailwind CDN -->
+        <script
+            is:inline
+            src="https://cdn.tailwindcss.com?plugins=forms,container-queries"
+        ></script>
+        <script is:inline id="tailwind-config">
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: "var(--color-primary)",
+                            background: "var(--color-background)",
+                            surface: "var(--color-surface)",
+                            border: "var(--color-border)",
+                            text: "var(--color-text)",
+                            muted: "var(--color-muted)",
+                            accent: "var(--color-accent)",
+                        },
+                        fontFamily: {
+                            mono: ["JetBrains Mono", "monospace"],
+                            sans: ["IBM Plex Sans", "sans-serif"],
+                        },
+                        borderRadius: {
+                            DEFAULT: "0px",
+                            lg: "0px",
+                            xl: "0px",
+                            full: "0px",
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <style is:global>
+            :root {
+                --color-background: #ffffff;
+                --color-surface: #f4f4f5;
+                --color-border: #e5e5e5;
+                --color-text: #18181b;
+                --color-muted: #71717a;
+                --color-accent: #52525b;
+                --color-primary: #000000;
+
+                --font-mono: "JetBrains Mono", monospace;
+                --font-sans: "IBM Plex Sans", sans-serif;
+            }
+
+            html.dark {
+                --color-background: #000000;
+                --color-surface: #0a0a0a;
+                --color-border: #444444;
+                --color-text: #e0e0e0;
+                --color-muted: #666666;
+                --color-accent: #888888;
+                --color-primary: #ffffff;
+            }
+
+            /* Base */
+            body {
+                background-color: var(--color-background);
+                color: var(--color-text);
+                font-family: "IBM Plex Sans", sans-serif;
+            }
+
+            /* Terminal hover */
+            .terminal-hover:hover {
+                background-color: var(--color-surface);
+            }
+            .terminal-hover:hover .title-text::before {
+                content: "* ";
+                color: var(--color-primary);
+            }
+
+            /* Links */
+            a {
+                text-decoration: none;
+                cursor: crosshair;
+                transition: color 0ms;
+            }
+
+            /* Theme Selector Active State */
+            .theme-btn.active {
+                color: var(--color-primary);
+                font-weight: 700;
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body
+        class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-8 lg:px-12"
+    >
+        <div class="w-full max-w-7xl flex flex-col gap-8">
+            <!-- Top Nav / Breadcrumb & Theme Selector -->
+            <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm">
+                <div class="flex items-center gap-2 text-accent">
+                    <span class="material-symbols-outlined text-[16px] text-primary"
+                        >terminal</span
+                    >
+                    <a
+                        href="/"
+                        class="hover:text-primary transition-colors duration-0 cursor-[crosshair]"
+                        title="Return to Gateway Home">{profileData.terminalPrompt || 'fauzan@tux'}:~$</a
+                    >
+
+                    <span class="text-primary">{breadcrumb}</span>
+                </div>
+
+                <!-- Theme Selector -->
+                <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
+                    <span class="text-muted mr-1 hidden sm:inline">&gt; mode:</span>
+                    <button
+                        type="button"
+                        data-theme-btn="system"
+                        class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                        title="System theme"
+                    >sys</button>
+                    <span class="text-muted">|</span>
+                    <button
+                        type="button"
+                        data-theme-btn="dark"
+                        class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                        title="Dark theme"
+                    >dark</button>
+                    <span class="text-muted">|</span>
+                    <button
+                        type="button"
+                        data-theme-btn="light"
+                        class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                        title="Light theme"
+                    >light</button>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="flex flex-col gap-4">
+                <slot />
+            </main>
+
+            <!-- Back link (cd ..) — always at the bottom -->
+            {backHref && (
+                <div class="font-mono text-sm border-t border-dashed border-muted pt-4">
+                    <a
+                        href={backHref}
+                        class="text-accent hover:text-primary transition-colors duration-0 cursor-[crosshair]"
+                    >
+                        &lt;- {backLabel}
+                    </a>
+                </div>
+            )}
+
+            <!-- Optional pagination footer -->
+            {
+                showFooter && (
+                    <footer class="flex justify-between items-center py-6 font-mono text-sm font-semibold">
+                        <slot name="footer-prev">
+                            <span class="text-muted">[Prev]</span>
+                        </slot>
+                        <div class="text-muted text-xs">
+                            <slot name="footer-page">PAGE 1/1</slot>
+                        </div>
+                        <slot name="footer-next">
+                            <span class="text-muted">[Next]</span>
+                        </slot>
+                    </footer>
+                )
+            }
+        </div>
+
+        <!-- Runtime Theme Interactivity Script -->
+        <script is:inline>
+            (function () {
+                function updateThemeUI(theme) {
+                    var buttons = document.querySelectorAll('[data-theme-btn]');
+                    buttons.forEach(function (btn) {
+                        var btnTheme = btn.getAttribute('data-theme-btn');
+                        if (btnTheme === theme) {
+                            btn.classList.add('active');
+                            btn.setAttribute('aria-pressed', 'true');
+                        } else {
+                            btn.classList.remove('active');
+                            btn.setAttribute('aria-pressed', 'false');
+                        }
+                    });
+                }
+
+                function applyTheme(theme) {
+                    localStorage.setItem('theme', theme);
+                    var isDark =
+                        theme === 'dark' ||
+                        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    if (isDark) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                    updateThemeUI(theme);
+                }
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    var storedTheme = localStorage.getItem('theme') || 'system';
+                    updateThemeUI(storedTheme);
+
+                    var buttons = document.querySelectorAll('[data-theme-btn]');
+                    buttons.forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            var val = btn.getAttribute('data-theme-btn');
+                            if (val) {
+                                applyTheme(val);
+                            }
+                        });
+                    });
+
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+                        var currentStored = localStorage.getItem('theme') || 'system';
+                        if (currentStored === 'system') {
+                            if (e.matches) {
+                                document.documentElement.classList.add('dark');
+                            } else {
+                                document.documentElement.classList.remove('dark');
+                            }
+                        }
+                    });
+                });
+            })();
+        </script>
+    </body>
+</html>

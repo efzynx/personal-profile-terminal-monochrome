@@ -1,0 +1,420 @@
+---
+import { getSession } from '../../../lib/auth';
+import { getPost } from '../../../lib/cms';
+
+const session = getSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect('/writer');
+}
+
+const targetSlug = Astro.url.searchParams.get('slug');
+let existingPost = null;
+
+if (targetSlug) {
+  try {
+    existingPost = await getPost(targetSlug, session.token);
+  } catch (e) {
+    console.error('Error fetching post for edit:', e);
+  }
+}
+
+const isEditMode = Boolean(existingPost);
+const defaultTitle = existingPost ? existingPost.frontmatter.title : '';
+const defaultSlug = existingPost ? existingPost.slug : '';
+const defaultDescription = existingPost ? existingPost.description || existingPost.frontmatter.description || '' : '';
+const defaultCategory = existingPost ? existingPost.frontmatter.category || 'General' : 'General';
+const defaultPubDate = existingPost ? existingPost.frontmatter.pubDate : new Date().toISOString().split('T')[0];
+const defaultTags = existingPost && existingPost.frontmatter.tags ? existingPost.frontmatter.tags.join(', ') : '';
+const defaultDraft = existingPost ? existingPost.frontmatter.draft : false;
+const defaultCoverImage = existingPost ? existingPost.frontmatter.coverImage || '' : '';
+const defaultContent = existingPost ? existingPost.content : '';
+---
+
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{isEditMode ? `Edit: ${defaultTitle}` : 'Create New Post'} — Writer Editor</title>
+
+    <script is:inline>
+        (function () {
+            var storedTheme = localStorage.getItem('theme') || 'system';
+            var isDark =
+                storedTheme === 'dark' ||
+                (storedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
+        rel="stylesheet"
+    />
+
+    <script is:inline src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script is:inline id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary:    "var(--color-primary)",
+                        background: "var(--color-background)",
+                        surface:    "var(--color-surface)",
+                        border:     "var(--color-border)",
+                        text:       "var(--color-text)",
+                        muted:      "var(--color-muted)",
+                        accent:     "var(--color-accent)",
+                    },
+                    fontFamily: {
+                        mono: ["JetBrains Mono", "monospace"],
+                        sans: ["IBM Plex Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px",
+                    },
+                },
+            },
+        };
+    </script>
+    <style is:global>
+        :root {
+            --color-background: #ffffff;
+            --color-surface: #f4f4f5;
+            --color-border: #e5e5e5;
+            --color-text: #18181b;
+            --color-muted: #71717a;
+            --color-accent: #52525b;
+            --color-primary: #000000;
+        }
+
+        html.dark {
+            --color-background: #000000;
+            --color-surface: #0a0a0a;
+            --color-border: #444444;
+            --color-text: #e0e0e0;
+            --color-muted: #666666;
+            --color-accent: #888888;
+            --color-primary: #ffffff;
+        }
+
+        body {
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: "JetBrains Mono", monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background text-text flex justify-center py-8 px-4 md:px-8">
+    <div class="w-full max-w-6xl flex flex-col gap-6">
+
+        <!-- Nav -->
+        <nav class="flex items-center justify-between border-b border-muted pb-4 font-mono text-sm">
+            <div class="flex items-center gap-2 text-accent">
+                <span class="material-symbols-outlined text-[16px] text-primary">edit_note</span>
+                <a href="/writer/dashboard" class="hover:text-primary no-underline text-accent">dashboard</a>
+                <span>/</span>
+                <span class="text-primary font-bold">{isEditMode ? `edit [${defaultSlug}]` : 'new-post'}</span>
+            </div>
+
+            <a
+                href="/writer/dashboard"
+                class="font-mono text-xs text-accent hover:text-text border border-muted px-3 py-1.5 no-underline cursor-[crosshair]"
+            >
+                &lt;-- Cancel & Return
+            </a>
+        </nav>
+
+        <!-- Form Box -->
+        <form id="editor-form" class="flex flex-col gap-6">
+            <input type="hidden" id="oldSlug" value={defaultSlug} />
+
+            <!-- Action Bar Top -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface border border-muted p-4">
+                <div class="flex items-center gap-2 font-mono text-xs text-accent">
+                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
+                    <span>Status: <strong id="status-indicator" class="text-primary">{isEditMode ? 'EDITING EXISTING POST' : 'DRAFTING NEW POST'}</strong></span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button
+                        type="button"
+                        id="btn-upload-trigger"
+                        class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-3 py-2 cursor-[crosshair] flex items-center gap-1.5"
+                    >
+                        <span class="material-symbols-outlined text-base">image</span>
+                        <span>[ UPLOAD IMAGE ]</span>
+                    </button>
+                    <input type="file" id="image-file-input" accept="image/*" class="hidden" />
+
+                    <button
+                        type="submit"
+                        id="btn-save"
+                        class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-6 py-2 transition-colors cursor-[crosshair] flex items-center gap-2"
+                    >
+                        <span class="material-symbols-outlined text-base">save</span>
+                        <span>[ COMMIT / SAVE POST ]</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="alert-box" class="hidden border p-4 font-mono text-xs"></div>
+
+            <!-- Metadata Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface border border-muted p-6">
+                <!-- Title -->
+                <div class="flex flex-col gap-1.5 md:col-span-2">
+                    <label for="title" class="font-mono text-xs text-accent font-bold">TITLE *</label>
+                    <input
+                        type="text"
+                        id="title"
+                        required
+                        value={defaultTitle}
+                        placeholder="Contoh: Belajar Astro 6 & Tailwind CSS v4"
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
+                </div>
+
+                <!-- Slug -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="slug" class="font-mono text-xs text-accent font-bold">SLUG (URL IDENTIFIER) *</label>
+                    <input
+                        type="text"
+                        id="slug"
+                        required
+                        value={defaultSlug}
+                        placeholder="belajar-astro-6-tailwind"
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
+                </div>
+
+                <!-- Category -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="category" class="font-mono text-xs text-accent font-bold">CATEGORY</label>
+                    <input
+                        type="text"
+                        id="category"
+                        value={defaultCategory}
+                        placeholder="General, Backend, Linux, DevOps"
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
+                </div>
+
+                <!-- Pub Date -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="pubDate" class="font-mono text-xs text-accent font-bold">PUBLICATION DATE</label>
+                    <input
+                        type="date"
+                        id="pubDate"
+                        value={defaultPubDate}
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
+                </div>
+
+                <!-- Tags -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="tags" class="font-mono text-xs text-accent font-bold">TAGS (PISAH DENGAN KOMA)</label>
+                    <input
+                        type="text"
+                        id="tags"
+                        value={defaultTags}
+                        placeholder="astro, tailwind, webdev"
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
+                </div>
+
+                <!-- Description -->
+                <div class="flex flex-col gap-1.5 md:col-span-2">
+                    <label for="description" class="font-mono text-xs text-accent font-bold">DESCRIPTION / SUMMARY</label>
+                    <textarea
+                        id="description"
+                        rows="2"
+                        placeholder="Ringkasan singkat isi artikel untuk SEO dan preview list..."
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 resize-y"
+                    >{defaultDescription}</textarea>
+                </div>
+
+                <!-- Cover Image & Options -->
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:col-span-2 pt-2 border-t border-muted">
+                    <div class="flex-1 flex flex-col gap-1 w-full">
+                        <label for="coverImage" class="font-mono text-xs text-accent font-bold">COVER IMAGE URL (OPTIONAL)</label>
+                        <input
+                            type="text"
+                            id="coverImage"
+                            value={defaultCoverImage}
+                            placeholder="/images/posts/sample.png"
+                            class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 w-full"
+                        />
+                    </div>
+
+                    <label class="flex items-center gap-2 cursor-pointer font-mono text-xs text-accent shrink-0 pt-4 md:pt-0">
+                        <input
+                            type="checkbox"
+                            id="draft"
+                            checked={defaultDraft}
+                            class="bg-background border-muted text-primary focus:ring-0 w-4 h-4"
+                        />
+                        <span>Simpan sebagai Draft (Tidak dipublikasikan)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Content Area: Editor + Preview -->
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between font-mono text-xs text-accent">
+                    <span class="font-bold">MARKDOWN CONTENT</span>
+                    <span>Supports Markdown formatting, code blocks & images</span>
+                </div>
+
+                <textarea
+                    id="content"
+                    rows="18"
+                    placeholder="Tulis artikel blog Anda di sini menggunakan format Markdown..."
+                    class="w-full bg-surface border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text p-4 resize-y leading-relaxed"
+                >{defaultContent}</textarea>
+            </div>
+        </form>
+    </div>
+
+    <!-- Client-Side Script -->
+    <script is:inline>
+        document.addEventListener('DOMContentLoaded', function () {
+            var titleInput = document.getElementById('title');
+            var slugInput = document.getElementById('slug');
+            var editorForm = document.getElementById('editor-form');
+            var btnSave = document.getElementById('btn-save');
+            var alertBox = document.getElementById('alert-box');
+            var btnUploadTrigger = document.getElementById('btn-upload-trigger');
+            var imageFileInput = document.getElementById('image-file-input');
+            var contentTextarea = document.getElementById('content');
+
+            var isSlugTouched = Boolean(slugInput.value);
+            slugInput.addEventListener('input', function () {
+                isSlugTouched = true;
+            });
+
+            titleInput.addEventListener('input', function () {
+                if (!isSlugTouched) {
+                    slugInput.value = titleInput.value
+                        .toLowerCase()
+                        .trim()
+                        .replace(/[^a-z0-9\s-]/g, '')
+                        .replace(/\s+/g, '-');
+                }
+            });
+
+            // Upload Image Logic
+            btnUploadTrigger.addEventListener('click', function () {
+                imageFileInput.click();
+            });
+
+            imageFileInput.addEventListener('change', async function () {
+                var file = imageFileInput.files[0];
+                if (!file) return;
+
+                btnUploadTrigger.disabled = true;
+                btnUploadTrigger.innerText = '[ UPLOADING... ]';
+
+                var formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    var res = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    var data = await res.json();
+
+                    if (res.ok && data.url) {
+                        var imgMarkdown = '\n![' + file.name + '](' + data.url + ')\n';
+                        contentTextarea.value += imgMarkdown;
+                        alert('Gambar berhasil diunggah! Syntax markdown telah disisipkan ke editor.');
+                    } else {
+                        alert('Gagal mengunggah gambar: ' + (data.error || 'Unknown error'));
+                    }
+                } catch (err) {
+                    alert('Error koneksi saat upload gambar.');
+                } finally {
+                    btnUploadTrigger.disabled = false;
+                    btnUploadTrigger.innerText = '[ UPLOAD IMAGE ]';
+                    imageFileInput.value = '';
+                }
+            });
+
+            // Submit Form Logic
+            editorForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                btnSave.disabled = true;
+                btnSave.innerText = '[ SAVING... ]';
+                alertBox.classList.add('hidden');
+
+                var slug = slugInput.value.trim();
+                var oldSlug = document.getElementById('oldSlug').value;
+                var title = titleInput.value.trim();
+                var category = document.getElementById('category').value.trim();
+                var pubDate = document.getElementById('pubDate').value;
+                var tagsStr = document.getElementById('tags').value;
+                var description = document.getElementById('description').value.trim();
+                var coverImage = document.getElementById('coverImage').value.trim();
+                var draft = document.getElementById('draft').checked;
+                var content = contentTextarea.value;
+
+                var tags = tagsStr ? tagsStr.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
+
+                var payload = {
+                    slug: slug,
+                    oldSlug: oldSlug,
+                    frontmatter: {
+                        title: title,
+                        description: description,
+                        pubDate: pubDate,
+                        category: category,
+                        tags: tags,
+                        draft: draft,
+                        coverImage: coverImage || undefined,
+                    },
+                    content: content,
+                };
+
+                try {
+                    var res = await fetch('/api/posts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    var data = await res.json();
+
+                    if (res.ok && data.success) {
+                        alertBox.className = 'border border-green-500/50 bg-green-500/10 text-green-400 p-4 font-mono text-xs';
+                        alertBox.innerText = '[ SUCCESS ] ' + (data.message || 'Postingan berhasil disimpan!');
+                        alertBox.classList.remove('hidden');
+
+                        setTimeout(function () {
+                            window.location.href = '/writer/dashboard';
+                        }, 1000);
+                    } else {
+                        alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
+                        alertBox.innerText = '[ ERR ] ' + (data.error || 'Gagal menyimpan artikel');
+                        alertBox.classList.remove('hidden');
+                        btnSave.disabled = false;
+                        btnSave.innerText = '[ COMMIT / SAVE POST ]';
+                    }
+                } catch (err) {
+                    alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
+                    alertBox.innerText = '[ ERR ] Terjadi kesalahan jaringan saat menyimpan postingan.';
+                    alertBox.classList.remove('hidden');
+                    btnSave.disabled = false;
+                    btnSave.innerText = '[ COMMIT / SAVE POST ]';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
