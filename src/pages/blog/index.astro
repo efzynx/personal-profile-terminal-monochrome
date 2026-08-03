@@ -1,16 +1,11 @@
 ---
-export const prerender = true;
-import { getCollection } from "astro:content";
+export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
-
-
-const allPosts = await getCollection("posts", ({ data }) => !data.draft);
-const posts = allPosts.sort(
-    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-);
-
+import { listPosts, getProfileData } from "../../lib/cms";
 import { formatDate } from "../../lib/utils";
-import profileData from "../../content/profile.json";
+
+const profileData = await getProfileData();
+const posts = await listPosts();
 
 const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('@')[0] : "user";
 ---
@@ -52,18 +47,18 @@ const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('
             ) : (
                 posts.map((post) => (
                     <a
-                        id={`post-${post.id}`}
-                        href={`/blog/posts/${post.id}`}
+                        id={`post-${post.slug}`}
+                        href={`/blog/posts/${post.slug}`}
                         class="terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
                     >
                         <div class="font-mono text-sm text-accent self-center">
-                            {formatDate(post.data.pubDate)}
+                            {formatDate(post.frontmatter.pubDate)}
                         </div>
                         <div class="font-mono text-sm text-muted self-center font-bold tracking-wider">
-                            [{post.data.category}]
+                            [{post.frontmatter.category}]
                         </div>
                         <div class="font-sans text-base text-text self-center title-text group-hover:text-primary transition-colors duration-0">
-                            {post.data.title}
+                            {post.frontmatter.title}
                         </div>
                     </a>
                 ))

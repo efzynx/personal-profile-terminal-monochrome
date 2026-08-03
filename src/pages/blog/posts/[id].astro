@@ -1,43 +1,42 @@
 ---
-export const prerender = true;
-import { getCollection, render } from "astro:content";
+export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { getPost } from "../../../lib/cms";
+import { formatDate, calculateReadTime } from "../../../lib/utils";
+import { marked } from "marked";
 
+const { id } = Astro.params;
+const post = await getPost(id || "");
 
-export async function getStaticPaths() {
-    const posts = await getCollection("posts", ({ data }) => !data.draft);
-    return posts.map(post => ({ params: { id: post.id }, props: { post } }));
+if (!post) {
+    return Astro.redirect("/blog");
 }
 
-const { post } = Astro.props;
-const { Content } = await render(post);
-
-import { formatDate, calculateReadTime } from "../../../lib/utils";
-
-const readTime = calculateReadTime(post.body);
+const readTime = calculateReadTime(post.content || "");
+const htmlContent = marked.parse(post.content || "");
 ---
 
 <BaseLayout
-    title={post.data.title}
-    description={post.data.description}
-    breadcrumb={`cd ~/blog/${post.id}`}
+    title={post.frontmatter.title}
+    description={post.frontmatter.description}
+    breadcrumb={`cd ~/blog/${post.slug}`}
     backHref="/blog"
     backLabel="cd ~/blog"
 >
     <!-- Article header -->
     <header class="border-b border-muted pb-6">
         <div class="flex flex-wrap items-center gap-3 font-mono text-sm text-accent mb-4">
-            <span>&gt; date: {formatDate(post.data.pubDate)}</span>
+            <span>&gt; date: {formatDate(post.frontmatter.pubDate)}</span>
             <span class="text-muted">|</span>
             <span>&gt; author: fauzan</span>
             <span class="text-muted">|</span>
             <span>&gt; read_time: {readTime}m</span>
         </div>
         <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary leading-tight mb-4">
-            {post.data.title}
+            {post.frontmatter.title}
         </h1>
         <div class="flex flex-wrap gap-2">
-            {post.data.tags.map((tag: string) => (
+            {post.frontmatter.tags && post.frontmatter.tags.map((tag: string) => (
                 <span class="border border-muted bg-surface font-mono text-xs text-text px-2 py-1">
                     [{tag}]
                 </span>
@@ -46,12 +45,11 @@ const readTime = calculateReadTime(post.body);
     </header>
 
     <!-- Article body -->
-    <article class="article-content font-sans text-base text-text leading-relaxed">
-        <Content />
+    <article class="article-content font-sans text-base text-text leading-relaxed mt-6" set:html={htmlContent}>
     </article>
 
     <!-- Footer -->
-    <footer class="border-t border-muted pt-6 font-mono text-sm text-accent flex justify-between items-center">
+    <footer class="border-t border-muted pt-6 font-mono text-sm text-accent flex justify-between items-center mt-8">
         <span>EOF</span>
         <div class="flex gap-4">
             <a href="/blog" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Back]</a>
