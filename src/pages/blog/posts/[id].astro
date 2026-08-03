@@ -59,7 +59,11 @@ const htmlContent = marked.parse(post.content || "");
 </BaseLayout>
 
 <style>
-    .article-content p { margin-bottom: 1.25rem; line-height: 1.75; }
+    .article-content {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .article-content p { margin-bottom: 1.25rem; line-height: 1.75; overflow-wrap: anywhere; word-break: break-word; }
     .article-content h2 {
         font-family: "JetBrains Mono", monospace;
         font-size: 1.25rem; font-weight: 700; color: var(--color-primary);

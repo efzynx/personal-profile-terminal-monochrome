@@ -697,12 +697,47 @@ export async function deletePost(slug: string, token?: string): Promise<{ succes
 }
 
 export async function saveImageFile(filename: string, buffer: Buffer, token?: string): Promise<string> {
-  // Coba unggah ke Cloudinary via OAuth
-  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'blog_posts', token, filename);
-  if (cldResult.url) {
-    return cldResult.url;
+  // 1. Coba unggah ke Cloudinary via OAuth
+  try {
+    const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'blog_posts', token, filename);
+    if (cldResult.url) {
+      return cldResult.url;
+    }
+  } catch (e) {
+    console.error('Cloudinary upload error:', e);
   }
 
+  // 2. Coba unggah ke Supabase Storage (jika dikonfigurasi)
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const ext = filename.split('.').pop()?.toLowerCase();
+        let contentType = 'image/png';
+        if (ext === 'jpg' || ext === 'jpeg') contentType = 'image/jpeg';
+        else if (ext === 'svg') contentType = 'image/svg+xml';
+        else if (ext === 'webp') contentType = 'image/webp';
+        else if (ext === 'gif') contentType = 'image/gif';
+
+        const storagePath = `posts/${filename}`;
+        const { data, error } = await supabase.storage.from('media').upload(storagePath, buffer, {
+          contentType,
+          upsert: true,
+        });
+
+        if (!error && data) {
+          const { data: pubUrlData } = supabase.storage.from('media').getPublicUrl(storagePath);
+          if (pubUrlData?.publicUrl) {
+            return pubUrlData.publicUrl;
+          }
+        }
+      } catch (err) {
+        console.error('Supabase storage upload error:', err);
+      }
+    }
+  }
+
+  // 3. Lingkungan lokal
   if (!isProductionEnv()) {
     const localImagesDir = getLocalImagesDir();
     const destPath = path.join(localImagesDir, filename);
@@ -710,31 +745,14 @@ export async function saveImageFile(filename: string, buffer: Buffer, token?: st
     return `/images/posts/${filename}`;
   }
 
-  const owner = getGithubOwner();
-  const repo = getGithubRepo();
-  const branch = getGithubDataBranch();
-  const targetPath = `public/images/posts/${filename}`;
+  // 4. Fallback Produksi: Gunakan Data URL agar gambar langsung tampil instan 0-detik di Vercel tanpa 404
+  const ext = filename.split('.').pop()?.toLowerCase() || 'png';
+  let mimeType = 'image/png';
+  if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+  else if (ext === 'svg') mimeType = 'image/svg+xml';
+  else if (ext === 'webp') mimeType = 'image/webp';
+  else if (ext === 'gif') mimeType = 'image/gif';
 
-  const payload = {
-    message: `feat(blog): upload image ${filename}`,
-    content: buffer.toString('base64'),
-    branch,
-  };
-
-  if (!token) {
-    throw new Error('Session token diperlukan untuk upload gambar. Silakan login ulang.');
-  }
-
-  const res = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  }, token);
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`Gagal upload gambar ke GitHub: ${err.message || res.statusText}`);
-  }
-
-  return `/images/posts/${filename}`;
+  return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
 
