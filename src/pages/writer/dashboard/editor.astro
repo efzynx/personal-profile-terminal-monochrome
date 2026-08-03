@@ -282,6 +282,26 @@ const defaultContent = existingPost ? existingPost.content : '';
                     <span>Supports Markdown formatting, code blocks & images</span>
                 </div>
 
+                <!-- Blog Template Toolbar -->
+                <div class="flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-accent bg-surface border border-muted p-2.5">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-bold text-primary">📑 TEMPLATES:</span>
+                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="tutorial">
+                            [ 🛠️ Tutorial / Guide ]
+                        </button>
+                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="showcase">
+                            [ 🚀 Project Showcase ]
+                        </button>
+                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="architecture">
+                            [ 🏗️ System Design ]
+                        </button>
+                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="note">
+                            [ 📝 Quick Note ]
+                        </button>
+                    </div>
+                    <span class="text-muted hidden md:inline">Klik template untuk mengisi outline otomatis</span>
+                </div>
+
                 <textarea
                     id="content"
                     rows="18"
@@ -317,6 +337,30 @@ const defaultContent = existingPost ? existingPost.content : '';
                         .replace(/[^a-z0-9\s-]/g, '')
                         .replace(/\s+/g, '-');
                 }
+            });
+
+            // Blog Templates Handler
+            var templates = {
+                tutorial: "## Overview\nRingkasan singkat mengenai topik tutorial ini dan masalah yang akan diselesaikan.\n\n## Prerequisites\n- Node.js >= 18\n- Pemahaman dasar TypeScript / Astro\n\n## Langkah-Langkah Implementasi\n\n### 1. Instalasi & Setup\n```bash\nnpm install package-name\n```\n\n### 2. Konfigurasi\nPenjelasan konfigurasi dan kode utama.\n\n### 3. Contoh Kode\n```typescript\n// Tulis implementasi kode di sini\n```\n\n## Pengujian & Verifikasi\nCara menjalankan dan memverifikasi hasilnya.\n\n## Ringkasan\nKesimpulan dan rangkuman poin penting.",
+                showcase: "## Pengenalan Proyek\nDeskripsi singkat mengenai proyek yang dibuat dan keunggulannya.\n\n## Fitur Utama\n- **Fitur A**: Deskripsi fitur A.\n- **Fitur B**: Deskripsi fitur B.\n- **Fitur C**: Deskripsi performa & desain.\n\n## Tech Stack\n- **Framework**: Astro 5\n- **Styling**: Tailwind CSS\n- **Database**: Supabase (PostgreSQL)\n\n## Tangkapan Layar & Arsitektur\n![Project Preview](/images/posts/sample.png)\n\n## Uji Coba & Demo\nLink menuju live demo atau repositori GitHub.",
+                architecture: "## Ringkasan Eksekutif\nLatar belakang masalah dan tujuan arsitektur sistem.\n\n## Diagram Arsitektur\n```\n[ Client ] ---> [ Astro SSR (Vercel) ] ---> [ Supabase PostgreSQL ]\n```\n\n## Keputusan Desain & Trade-offs\n- **Keputusan A**: Mengapa memilih metode A dibandingkan metode B.\n- **Keputusan B**: Dampak terhadap performa dan skalabilitas.\n\n## Hasil Benchmark\n- Latensi response: ~50ms\n- Overhead query database: Sangat minim\n\n## Pelajaran Yang Dipetik\nPembelajaran utama dan aspek yang dapat ditingkatkan.",
+                note: "## Konteks\nCatatan singkat mengenai temuan atau log harian.\n\n## Pengamatan\n- Pengamatan 1\n- Pengamatan 2\n\n## Kesimpulan\nLangkah selanjutnya atau tindak lanjut."
+            };
+
+            document.querySelectorAll('.btn-template').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var templateType = btn.getAttribute('data-template');
+                    var templateContent = templates[templateType];
+                    if (!templateContent) return;
+
+                    if (contentTextarea.value.trim().length > 0) {
+                        if (!confirm('Apakah Anda yakin ingin menimpa isi editor dengan template ini?')) {
+                            return;
+                        }
+                    }
+
+                    contentTextarea.value = templateContent;
+                });
             });
 
             // Upload Image Logic

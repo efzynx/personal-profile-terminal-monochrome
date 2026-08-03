@@ -198,6 +198,7 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
                     </div>
 
                     <!-- Identity Inputs -->
+                    <input type="hidden" id="faviconUrl" value={profile.faviconUrl || '/favicon.svg'} />
                     <div class="flex flex-col gap-4">
                         <div class="flex flex-col gap-1">
                             <label for="name" class="font-mono text-xs text-accent font-bold">NAMA LENGKAP *</label>

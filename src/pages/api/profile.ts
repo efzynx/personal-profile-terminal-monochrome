@@ -97,7 +97,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       bio: bio ? bio.trim() : currentProfile.bio,
       portfolioBio: portfolioBio ? portfolioBio.trim() : currentProfile.portfolioBio,
       avatarUrl: avatarUrl || currentProfile.avatarUrl,
-      faviconUrl: faviconUrl || currentProfile.faviconUrl || '/favicon.svg',
+      faviconUrl: (faviconUrl && faviconUrl !== '/favicon.svg') ? faviconUrl : (currentProfile.faviconUrl || '/favicon.svg'),
       skills: Array.isArray(skills) ? skills : currentProfile.skills,
     };
 
