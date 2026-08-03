@@ -5,20 +5,50 @@
   "bio": "Backend Developer & DevOps Enthusiast.\nMahasiswa tingkat akhir Univ. Nurul Jadid.",
   "portfolioBio": "Backend Developer & DevOps Enthusiast.\nMembangun sistem yang robust.",
   "avatarUrl": "/saya.avif",
-  "faviconUrl": "/images/favicon/favicon-1785749995138.svg",
+  "faviconUrl": "/images/favicon/favicon-1785777997421.svg",
   "cloudinaryAccessToken": "",
   "cloudinaryRefreshToken": "",
   "cloudinaryTokenExpiresAt": 0,
   "skills": [
-    { "name": "Docker", "level": "medium" },
-    { "name": "Kubernetes", "level": "low" },
-    { "name": "Javascript", "level": "medium" },
-    { "name": "Typescript", "level": "medium" },
-    { "name": "Python", "level": "medium" },
-    { "name": "PostgreSQL", "level": "medium" },
-    { "name": "AWS", "level": "high" },
-    { "name": "CI/CD", "level": "medium" },
-    { "name": "Linux", "level": "high" },
-    { "name": "Nginx", "level": "high" }
+    {
+      "name": "Docker",
+      "level": "medium"
+    },
+    {
+      "name": "Kubernetes",
+      "level": "low"
+    },
+    {
+      "name": "Javascript",
+      "level": "medium"
+    },
+    {
+      "name": "Typescript",
+      "level": "medium"
+    },
+    {
+      "name": "Python",
+      "level": "medium"
+    },
+    {
+      "name": "PostgreSQL",
+      "level": "medium"
+    },
+    {
+      "name": "AWS",
+      "level": "high"
+    },
+    {
+      "name": "CI/CD",
+      "level": "medium"
+    },
+    {
+      "name": "Linux",
+      "level": "high"
+    },
+    {
+      "name": "Nginx",
+      "level": "high"
+    }
   ]
 }
