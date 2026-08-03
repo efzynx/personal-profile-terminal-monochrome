@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { uploadToCloudinaryViaOAuth } from './cloudinary';
+import { getSupabaseClient, isSupabaseConfigured } from './db';
 
 
 export interface PostFrontmatter {
@@ -60,7 +61,7 @@ function getGithubRepo(): string {
 }
 
 function getGithubDataBranch(): string {
-  return process.env.GITHUB_DATA_BRANCH || 'data';
+  return 'main';
 }
 
 function getLocalPostsDir(): string {
@@ -198,6 +199,25 @@ async function githubWriteFetch(urlPath: string, options: RequestInit, sessionTo
 
 // --- PROFILE MANAGEMENT ---
 export async function getProfileData(token?: string): Promise<ProfileData> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', 'default').maybeSingle();
+      if (data && !error) {
+        return {
+          name: data.name,
+          title: data.title,
+          terminalPrompt: data.terminal_prompt || data.terminalPrompt || 'fauzan@archLinux',
+          bio: data.bio,
+          portfolioBio: data.portfolio_bio || data.portfolioBio,
+          avatarUrl: data.avatar_url || data.avatarUrl,
+          faviconUrl: data.favicon_url || data.faviconUrl,
+          skills: typeof data.skills === 'string' ? JSON.parse(data.skills) : (data.skills || []),
+        };
+      }
+    }
+  }
+
   if (!isProductionEnv()) {
     const localPath = getLocalProfilePath();
     if (fs.existsSync(localPath)) {
@@ -233,6 +253,30 @@ export async function getProfileData(token?: string): Promise<ProfileData> {
 }
 
 export async function saveProfileData(data: ProfileData, token?: string): Promise<{ success: boolean; message: string }> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const payload = {
+        id: 'default',
+        name: data.name,
+        title: data.title,
+        terminal_prompt: data.terminalPrompt,
+        bio: data.bio,
+        portfolio_bio: data.portfolioBio,
+        avatar_url: data.avatarUrl,
+        favicon_url: data.faviconUrl,
+        skills: data.skills || [],
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('profiles').upsert(payload);
+      if (!error) {
+        return { success: true, message: 'Profil berhasil disimpan secara instan di Supabase Database!' };
+      } else {
+        console.error('Error saving profile to Supabase:', error);
+      }
+    }
+  }
+
   const jsonStr = JSON.stringify(data, null, 2);
 
   if (!isProductionEnv()) {
@@ -384,6 +428,32 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
 // --- POSTS MANAGEMENT ---
 
 export async function listPosts(token?: string): Promise<PostItem[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('draft', false)
+        .order('pub_date', { ascending: false });
+      if (data && !error && data.length > 0) {
+        return data.map((item: any) => ({
+          slug: item.slug,
+          frontmatter: {
+            title: item.title,
+            description: item.description,
+            pubDate: item.pub_date || item.pubDate,
+            category: item.category || 'General',
+            tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
+            draft: Boolean(item.draft),
+            coverImage: item.cover_image || item.coverImage,
+          },
+          content: item.content || '',
+        }));
+      }
+    }
+  }
+
   if (!isProductionEnv()) {
     const localDir = getLocalPostsDir();
     if (fs.existsSync(localDir)) {
@@ -427,6 +497,28 @@ export async function listPosts(token?: string): Promise<PostItem[]> {
 }
 
 export async function getPost(slug: string, token?: string): Promise<PostItem | null> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase.from('posts').select('*').eq('slug', slug).maybeSingle();
+      if (data && !error) {
+        return {
+          slug: data.slug,
+          frontmatter: {
+            title: data.title,
+            description: data.description,
+            pubDate: data.pub_date || data.pubDate,
+            category: data.category || 'General',
+            tags: typeof data.tags === 'string' ? JSON.parse(data.tags) : (data.tags || []),
+            draft: Boolean(data.draft),
+            coverImage: data.cover_image || data.coverImage,
+          },
+          content: data.content || '',
+        };
+      }
+    }
+  }
+
   if (!isProductionEnv()) {
     const localDir = getLocalPostsDir();
     const extList = ['.md', '.mdx'];
@@ -456,6 +548,34 @@ export async function getPost(slug: string, token?: string): Promise<PostItem | 
 export async function savePost(input: SavePostInput, token?: string): Promise<{ success: boolean; message: string }> {
   const { slug, oldSlug, frontmatter, content } = input;
   const rawMarkdown = stringifyFrontmatter(frontmatter, content);
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      if (oldSlug && oldSlug !== slug) {
+        await supabase.from('posts').delete().eq('slug', oldSlug);
+      }
+      const payload = {
+        id: slug,
+        slug,
+        title: frontmatter.title,
+        description: frontmatter.description,
+        content,
+        category: frontmatter.category || 'General',
+        tags: frontmatter.tags || [],
+        draft: Boolean(frontmatter.draft),
+        pub_date: frontmatter.pubDate,
+        cover_image: frontmatter.coverImage || null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('posts').upsert(payload, { onConflict: 'slug' });
+      if (!error) {
+        return { success: true, message: 'Postingan berhasil disimpan ke Supabase Database!' };
+      } else {
+        console.error('Error saving post to Supabase:', error);
+      }
+    }
+  }
 
   if (!isProductionEnv()) {
     const localDir = getLocalPostsDir();
@@ -523,6 +643,16 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
 }
 
 export async function deletePost(slug: string, token?: string): Promise<{ success: boolean; message: string }> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { error } = await supabase.from('posts').delete().eq('slug', slug);
+      if (!error) {
+        return { success: true, message: 'Postingan berhasil dihapus dari Supabase Database!' };
+      }
+    }
+  }
+
   if (!isProductionEnv()) {
     const localDir = getLocalPostsDir();
     const filePathMd = path.join(localDir, `${slug}.md`);
