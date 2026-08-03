@@ -29,8 +29,9 @@ const {
     backLabel = "cd ..",
 } = Astro.props;
 
-import profileData from "../content/profile.json";
+import { getProfileData } from "../lib/cms";
 
+const profileData = await getProfileData();
 const activeFavicon = profileData.faviconUrl || "/favicon.svg";
 const isSvgFavicon = activeFavicon.endsWith('.svg');
 ---

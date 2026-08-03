@@ -1,7 +1,9 @@
 ---
-export const prerender = true;
+export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
-import profileData from "../content/profile.json";
+import { getProfileData } from "../lib/cms";
+
+const profileData = await getProfileData();
 ---
 
 

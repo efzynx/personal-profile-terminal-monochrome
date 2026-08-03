@@ -1,6 +1,9 @@
 ---
-export const prerender = true;
+export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { getProfileData } from "../../../lib/cms";
+
+const profileData = await getProfileData();
 
 interface Repo {
     id: number;
@@ -38,7 +41,6 @@ try {
 }
 
 import { timeAgo } from "../../../lib/utils";
-import profileData from "../../../content/profile.json";
 ---
 
 <BaseLayout
