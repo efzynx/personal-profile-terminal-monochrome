@@ -59,6 +59,10 @@ function getGithubRepo(): string {
   return process.env.GITHUB_REPO_NAME || 'personal-profile-terminal-monochrome';
 }
 
+function getGithubDataBranch(): string {
+  return process.env.GITHUB_DATA_BRANCH || 'data';
+}
+
 function getLocalPostsDir(): string {
   const p = path.resolve(process.cwd(), 'src/content/posts');
   if (!fs.existsSync(p)) {
@@ -188,7 +192,8 @@ export async function getProfileData(token?: string): Promise<ProfileData> {
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/profile.json`, {}, token);
+  const branch = getGithubDataBranch();
+  const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/profile.json?ref=${branch}`, {}, token);
   if (res.ok) {
     const fileData = await res.json();
     const raw = Buffer.from(fileData.content, 'base64').toString('utf-8');
@@ -218,10 +223,11 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
+  const branch = getGithubDataBranch();
   const targetPath = 'src/content/profile.json';
 
   let sha: string | undefined;
-  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {}, token);
+  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, {}, token);
   if (existingRes.ok) {
     const existingData = await existingRes.json();
     sha = existingData.sha;
@@ -230,6 +236,7 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
   const payload = {
     message: 'feat(profile): update site profile settings',
     content: Buffer.from(jsonStr).toString('base64'),
+    branch,
     sha,
   };
 
@@ -265,11 +272,13 @@ export async function saveAvatarImage(filename: string, buffer: Buffer, token?: 
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
+  const branch = getGithubDataBranch();
   const targetPath = `public/images/avatar/${filename}`;
 
   const payload = {
     message: `feat(profile): upload avatar image ${filename}`,
     content: buffer.toString('base64'),
+    branch,
   };
 
   const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
@@ -317,11 +326,13 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
+  const branch = getGithubDataBranch();
   const targetPath = `public/images/favicon/${filename}`;
 
   const payload = {
     message: `feat(profile): upload favicon icon ${filename}`,
     content: buffer.toString('base64'),
+    branch,
   };
 
   const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
@@ -361,14 +372,15 @@ export async function listPosts(token?: string): Promise<PostItem[]> {
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/posts`, {}, token);
+  const branch = getGithubDataBranch();
+  const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/posts?ref=${branch}`, {}, token);
   if (!res.ok) return [];
   const items = await res.json();
   const posts: PostItem[] = [];
 
   for (const item of items) {
     if (item.name.endsWith('.md') || item.name.endsWith('.mdx')) {
-      const fileRes = await githubFetch(`/repos/${owner}/${repo}/contents/${item.path}`, {}, token);
+      const fileRes = await githubFetch(`/repos/${owner}/${repo}/contents/${item.path}?ref=${branch}`, {}, token);
       if (fileRes.ok) {
         const fileData = await fileRes.json();
         const raw = Buffer.from(fileData.content, 'base64').toString('utf-8');
@@ -398,8 +410,9 @@ export async function getPost(slug: string, token?: string): Promise<PostItem | 
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
+  const branch = getGithubDataBranch();
   const filePath = `src/content/posts/${slug}.md`;
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${filePath}`, {}, token);
+  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`, {}, token);
   if (!res.ok) return null;
 
   const data = await res.json();
@@ -427,10 +440,11 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
+  const branch = getGithubDataBranch();
   const targetPath = `src/content/posts/${slug}.md`;
 
   let sha: string | undefined;
-  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {}, token);
+  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, {}, token);
   if (existingRes.ok) {
     const existingData = await existingRes.json();
     sha = existingData.sha;
@@ -439,6 +453,7 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
   const payload = {
     message: `feat(blog): ${sha ? 'update' : 'create'} post ${slug}`,
     content: Buffer.from(rawMarkdown).toString('base64'),
+    branch,
     sha,
   };
 
@@ -454,13 +469,14 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
 
   if (oldSlug && oldSlug !== slug) {
     const oldPath = `src/content/posts/${oldSlug}.md`;
-    const oldRes = await githubFetch(`/repos/${owner}/${repo}/contents/${oldPath}`, {}, token);
+    const oldRes = await githubFetch(`/repos/${owner}/${repo}/contents/${oldPath}?ref=${branch}`, {}, token);
     if (oldRes.ok) {
       const oldData = await oldRes.json();
       await githubFetch(`/repos/${owner}/${repo}/contents/${oldPath}`, {
         method: 'DELETE',
         body: JSON.stringify({
           message: `refactor(blog): delete old post ${oldSlug}`,
+          branch,
           sha: oldData.sha,
         }),
       }, token);
@@ -486,9 +502,10 @@ export async function deletePost(slug: string, token?: string): Promise<{ succes
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
+  const branch = getGithubDataBranch();
   const targetPath = `src/content/posts/${slug}.md`;
 
-  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {}, token);
+  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, {}, token);
   if (!existingRes.ok) {
     return { success: false, message: 'Postingan tidak ditemukan di GitHub.' };
   }
@@ -498,6 +515,7 @@ export async function deletePost(slug: string, token?: string): Promise<{ succes
     method: 'DELETE',
     body: JSON.stringify({
       message: `feat(blog): delete post ${slug}`,
+      branch,
       sha: existingData.sha,
     }),
   }, token);
@@ -525,11 +543,13 @@ export async function saveImageFile(filename: string, buffer: Buffer, token?: st
 
   const owner = getGithubOwner();
   const repo = getGithubRepo();
+  const branch = getGithubDataBranch();
   const targetPath = `public/images/posts/${filename}`;
 
   const payload = {
     message: `feat(blog): upload image ${filename}`,
     content: buffer.toString('base64'),
+    branch,
   };
 
   const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
