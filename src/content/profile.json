@@ -6,6 +6,9 @@
   "portfolioBio": "Backend Developer & DevOps Enthusiast.\nMembangun sistem yang robust.",
   "avatarUrl": "/saya.avif",
   "faviconUrl": "/favicon.svg",
+  "cloudinaryAccessToken": "",
+  "cloudinaryRefreshToken": "",
+  "cloudinaryTokenExpiresAt": 0,
   "skills": [
     {
       "name": "Docker",

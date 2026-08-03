@@ -9,15 +9,15 @@ if (!session) {
 
 let profile = await getProfileData(session.token);
 const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
+const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
 ---
-
 
 <!doctype html>
 <html lang="id">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Site Settings & Profile — Writer Admin</title>
+    <title>Site Settings — Writer Admin</title>
 
     <script is:inline>
         (function () {
@@ -102,7 +102,6 @@ const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
             <div class="flex items-center gap-2 text-accent">
                 <span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
                 <span>{promptPrefix}:~$</span>
-
                 <span class="text-primary font-bold">cd ~/writer/settings</span>
             </div>
 
@@ -127,126 +126,47 @@ const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
                 href="/writer/dashboard"
                 class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
             >
-                [ 📝 Blog Posts CMS ]
+                [ 📝 Posts CMS ]
+            </a>
+            <a
+                href="/writer/dashboard/profile"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ 👤 Profile Settings ]
             </a>
             <a
                 href="/writer/dashboard/settings"
                 class="px-4 py-2 text-primary font-bold bg-surface border border-muted no-underline cursor-[crosshair]"
             >
-                [ ⚙️ Site & Profile Settings ]
+                [ ⚙️ Site Settings ]
             </a>
         </div>
 
         <!-- Header Block -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
             <div>
-                <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">Site Settings & Profile</h1>
-                <p class="font-mono text-xs text-muted mt-1">Atur nama, bio "Who Am I", foto profil, favicon ikon situs, dan daftar skill Anda.</p>
+                <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">Site Settings & Integrasi</h1>
+                <p class="font-mono text-xs text-muted mt-1">Konfigurasi ikon favicon situs dan integrasi Cloudinary OAuth Media Storage.</p>
             </div>
-
-            <button
-                type="submit"
-                form="settings-form"
-                id="btn-save-settings"
-                class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-6 py-2.5 transition-colors cursor-[crosshair] flex items-center gap-2 shrink-0"
-            >
-                <span class="material-symbols-outlined text-base">save</span>
-                <span>[ SAVE PROFILE SETTINGS ]</span>
-            </button>
         </header>
+
+        {cloudinaryStatusParam === 'connected' && (
+            <div class="border p-4 font-mono text-xs bg-green-500/10 border-green-500/40 text-green-400">
+                [ SUCCESS ] Akun Cloudinary berhasil ditautkan via OAuth 2.0! Seluruh media gambar sekarang otomatis diunggah ke Cloudinary CDN.
+            </div>
+        )}
+
+        {cloudinaryStatusParam === 'error' && (
+            <div class="border p-4 font-mono text-xs bg-red-500/10 border-red-500/40 text-red-400">
+                [ ERROR ] Gagal menautkan akun Cloudinary via OAuth. Periksa kredensial CLOUDINARY_CLIENT_ID & SECRET di file .env.
+            </div>
+        )}
 
         <div id="alert-box" class="hidden border p-4 font-mono text-xs"></div>
 
-        <!-- Form Settings -->
-        <form id="settings-form" class="flex flex-col gap-6">
+        <div class="flex flex-col gap-6">
 
-            <!-- Profile Info Card -->
-            <div class="bg-surface border border-muted p-6 flex flex-col gap-6">
-                <h2 class="font-mono text-base font-bold text-primary border-b border-muted pb-2 uppercase">&gt; Profile Identity</h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-6 items-start">
-                    <!-- Avatar Preview & Upload -->
-                    <div class="flex flex-col items-center gap-3">
-                        <div class="w-32 h-32 border border-muted overflow-hidden bg-background grayscale hover:grayscale-0 transition-all">
-                            <img
-                                id="avatar-preview"
-                                src={profile.avatarUrl || '/saya.avif'}
-                                alt="Profile Avatar"
-                                class="w-full h-full object-cover"
-                            />
-                        </div>
-                        <input type="hidden" id="avatarUrl" value={profile.avatarUrl || '/saya.avif'} />
-                        <button
-                            type="button"
-                            id="btn-upload-avatar"
-                            class="w-full font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-2 py-1.5 cursor-[crosshair] text-center"
-                        >
-                            [ UPLOAD FOTO ]
-                        </button>
-                        <input type="file" id="avatar-file-input" accept="image/*" class="hidden" />
-                    </div>
-
-                    <!-- Identity Inputs -->
-                    <div class="flex flex-col gap-4">
-                        <div class="flex flex-col gap-1">
-                            <label for="name" class="font-mono text-xs text-accent font-bold">NAMA LENGKAP *</label>
-                            <input
-                                type="text"
-                                id="name"
-                                required
-                                value={profile.name}
-                                placeholder="Ahmad Fauzan Adiman"
-                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
-                            />
-                        </div>
-
-                        <div class="flex flex-col gap-1">
-                            <label for="title" class="font-mono text-xs text-accent font-bold">PROFESI / TAGLINE</label>
-                            <input
-                                type="text"
-                                id="title"
-                                value={profile.title}
-                                placeholder="Backend Developer & DevOps Enthusiast"
-                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
-                            />
-                        </div>
-
-                        <div class="flex flex-col gap-1">
-                            <label for="terminalPrompt" class="font-mono text-xs text-accent font-bold">TERMINAL PROMPT PREFIX (CONTOH: user@tux / dev@laptop)</label>
-                            <input
-                                type="text"
-                                id="terminalPrompt"
-                                value={profile.terminalPrompt || 'fauzan@tux'}
-                                placeholder="fauzan@tux"
-                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
-                            />
-                        </div>
-
-
-                        <div class="flex flex-col gap-1">
-                            <label for="bio" class="font-mono text-xs text-accent font-bold">HOMEPAGE BIO ("WHO AM I")</label>
-                            <textarea
-                                id="bio"
-                                rows="3"
-                                placeholder="Tulis deskripsi singkat yang akan tampil di halaman Homepage..."
-                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text p-3 resize-y leading-relaxed"
-                            >{profile.bio}</textarea>
-                        </div>
-
-                        <div class="flex flex-col gap-1">
-                            <label for="portfolioBio" class="font-mono text-xs text-accent font-bold">PORTFOLIO BIO</label>
-                            <textarea
-                                id="portfolioBio"
-                                rows="2"
-                                placeholder="Tulis deskripsi singkat untuk sidebar halaman Portfolio..."
-                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text p-3 resize-y leading-relaxed"
-                            >{profile.portfolioBio}</textarea>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Favicon / Site Icon Card -->
+            <!-- Custom Favicon / Site Icon Card -->
             <div class="bg-surface border border-muted p-6 flex flex-col gap-6">
                 <h2 class="font-mono text-base font-bold text-primary border-b border-muted pb-2 uppercase">&gt; Custom Favicon / Site Icon</h2>
 
@@ -272,11 +192,10 @@ const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
                         <input type="file" id="favicon-file-input" accept=".svg,.png,.ico,.webp" class="hidden" />
                     </div>
 
-                    <!-- Recommended Guidance & Constraints Box -->
-                    <div class="flex flex-col gap-3 font-mono text-xs">
-                        <div class="border border-muted bg-background p-4 flex flex-col gap-2">
-                            <p class="text-primary font-bold uppercase tracking-wider flex items-center gap-2">
-                                <span class="material-symbols-outlined text-sm">info</span>
+                    <!-- Guidelines & Recommendations -->
+                    <div class="flex flex-col gap-4">
+                        <div class="bg-background border border-muted p-4 font-mono text-xs space-y-2">
+                            <p class="text-primary font-bold border-b border-muted pb-1">
                                 💡 Petunjuk Format & Rekomendasi Optimal:
                             </p>
                             <ul class="list-disc list-inside text-accent space-y-1.5 leading-relaxed pl-1">
@@ -298,255 +217,103 @@ const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
                 </div>
             </div>
 
-            <!-- Skills Card -->
+            <!-- Cloudinary OAuth 2.0 Media Storage Card -->
             <div class="bg-surface border border-muted p-6 flex flex-col gap-4">
                 <div class="flex items-center justify-between border-b border-muted pb-2">
-                    <h2 class="font-mono text-base font-bold text-primary uppercase">&gt; Tech Skills Management</h2>
-                    <button
-                        type="button"
-                        id="btn-add-skill"
-                        class="font-mono text-xs text-primary hover:bg-background border border-primary px-3 py-1 cursor-[crosshair]"
-                    >
-                        + Add Skill
-                    </button>
+                    <h2 class="font-mono text-base font-bold text-primary uppercase">&gt; Cloudinary OAuth Media Storage</h2>
+                    {profile.cloudinaryAccessToken ? (
+                        <span class="font-mono text-xs text-green-400 bg-green-500/10 border border-green-500/40 px-3 py-1">
+                            [ STATUS: CLOUDINARY TERHUBUNG VIA OAUTH ]
+                        </span>
+                    ) : (
+                        <span class="font-mono text-xs text-amber-400 bg-amber-500/10 border border-amber-500/40 px-3 py-1">
+                            [ STATUS: BELUM TERHUBUNG ]
+                        </span>
+                    )}
                 </div>
 
-                <div id="skills-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {profile.skills.map((skill, index) => (
-                        <div class="skill-item flex items-center justify-between gap-2 border border-muted bg-background p-2">
-                            <input
-                                type="text"
-                                value={skill.name}
-                                placeholder="Skill Name"
-                                class="skill-name bg-transparent border-0 font-mono text-xs text-text focus:ring-0 px-1 py-0.5 flex-1 w-24"
-                            />
-                            <select
-                                class="skill-level bg-surface border border-muted font-mono text-xs text-accent px-1 py-0.5 focus:ring-0 cursor-pointer"
-                            >
-                                <option value="low" selected={skill.level === 'low'}>low</option>
-                                <option value="medium" selected={skill.level === 'medium'}>medium</option>
-                                <option value="high" selected={skill.level === 'high'}>high</option>
-                            </select>
-                            <button
-                                type="button"
-                                class="btn-remove-skill font-mono text-xs text-red-400 hover:text-red-300 px-1 cursor-[crosshair]"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    ))}
+                <div class="flex flex-col gap-4 font-mono text-xs">
+                    <p class="text-accent leading-relaxed">
+                        Tautkan akun Cloudinary Anda menggunakan <strong class="text-primary">OAuth 2.0 Protocol</strong> resmi untuk menyimpan foto profil, favicon, dan gambar postingan blog langsung ke CDN Cloudinary tanpa membebani repositori Git.
+                    </p>
+
+                    <div class="flex flex-wrap items-center gap-4">
+                        <a
+                            href="/api/auth/cloudinary/login"
+                            class="font-mono text-xs font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2.5 no-underline transition-colors cursor-[crosshair] flex items-center gap-2"
+                        >
+                            <span class="material-symbols-outlined text-sm">cloud_sync</span>
+                            <span>{profile.cloudinaryAccessToken ? '[ 🔄 RE-AUTH CLOUDINARY OAUTH ]' : '[ 🔗 TAUTKAN CLOUDINARY VIA OAUTH ]'}</span>
+                        </a>
+
+                        {profile.cloudinaryAccessToken && (
+                            <span class="text-muted text-xs">
+                                Cloud Name: <strong class="text-primary">{process.env.CLOUDINARY_CLOUD_NAME || 'efzyn'}</strong>
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
-        </form>
+
+        </div>
+
     </div>
 
-    <!-- Client Script -->
     <script is:inline>
-        document.addEventListener('DOMContentLoaded', function () {
-            var btnUploadAvatar = document.getElementById('btn-upload-avatar');
-            var avatarFileInput = document.getElementById('avatar-file-input');
-            var avatarPreview = document.getElementById('avatar-preview');
-            var avatarUrlInput = document.getElementById('avatarUrl');
+        document.addEventListener('DOMContentLoaded', () => {
+            const alertBox = document.getElementById('alert-box');
+            const btnUploadFavicon = document.getElementById('btn-upload-favicon');
+            const faviconFileInput = document.getElementById('favicon-file-input');
+            const faviconPreview = document.getElementById('favicon-preview');
+            const faviconUrlInput = document.getElementById('faviconUrl');
 
-            var btnUploadFavicon = document.getElementById('btn-upload-favicon');
-            var faviconFileInput = document.getElementById('favicon-file-input');
-            var faviconPreview = document.getElementById('favicon-preview');
-            var faviconUrlInput = document.getElementById('faviconUrl');
-
-            var settingsForm = document.getElementById('settings-form');
-            var btnSaveSettings = document.getElementById('btn-save-settings');
-            var alertBox = document.getElementById('alert-box');
-            var btnAddSkill = document.getElementById('btn-add-skill');
-            var skillsList = document.getElementById('skills-list');
-
-            // Avatar Upload
-            btnUploadAvatar.addEventListener('click', function () {
-                avatarFileInput.click();
-            });
-
-            avatarFileInput.addEventListener('change', async function () {
-                var file = avatarFileInput.files[0];
-                if (!file) return;
-
-                btnUploadAvatar.disabled = true;
-                btnUploadAvatar.innerText = '[ UPLOADING... ]';
-
-                var formData = new FormData();
-                formData.append('avatar', file);
-
-                try {
-                    var res = await fetch('/api/profile', {
-                        method: 'POST',
-                        body: formData,
-                    });
-                    var data = await res.json();
-
-                    if (res.ok && data.avatarUrl) {
-                        avatarPreview.src = data.avatarUrl;
-                        avatarUrlInput.value = data.avatarUrl;
-                        alert('Foto profil berhasil diunggah!');
-                    } else {
-                        alert('Gagal mengunggah foto profil: ' + (data.error || 'Unknown error'));
-                    }
-                } catch (err) {
-                    alert('Error koneksi saat upload foto profil.');
-                } finally {
-                    btnUploadAvatar.disabled = false;
-                    btnUploadAvatar.innerText = '[ UPLOAD FOTO ]';
-                    avatarFileInput.value = '';
+            function showAlert(message, isError = false) {
+                alertBox.classList.remove('hidden', 'bg-green-500/10', 'border-green-500/40', 'text-green-400', 'bg-red-500/10', 'border-red-500/40', 'text-red-400');
+                if (isError) {
+                    alertBox.classList.add('bg-red-500/10', 'border-red-500/40', 'text-red-400');
+                    alertBox.innerHTML = `[ ERROR ] ${message}`;
+                } else {
+                    alertBox.classList.add('bg-green-500/10', 'border-green-500/40', 'text-green-400');
+                    alertBox.innerHTML = `[ SUCCESS ] ${message}`;
                 }
-            });
+                alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
 
-            // Favicon Upload
-            btnUploadFavicon.addEventListener('click', function () {
-                faviconFileInput.click();
-            });
-
-            faviconFileInput.addEventListener('change', async function () {
-                var file = faviconFileInput.files[0];
+            // Upload Favicon
+            btnUploadFavicon?.addEventListener('click', () => faviconFileInput?.click());
+            faviconFileInput?.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
                 if (!file) return;
 
-                // Client-side File Size Validation (500 KB Limit)
-                var MAX_BYTES = 500 * 1024;
-                if (file.size > MAX_BYTES) {
-                    alert('Ukuran file terlalu besar (' + (file.size / 1024).toFixed(1) + ' KB). Maksimal ukuran favicon yang diizinkan adalah 500 KB.');
-                    faviconFileInput.value = '';
+                if (file.size > 500 * 1024) {
+                    showAlert(`Ukuran file terlalu besar (${(file.size / 1024).toFixed(1)} KB). Maksimal ukuran favicon adalah 500 KB.`, true);
                     return;
                 }
 
-                btnUploadFavicon.disabled = true;
                 btnUploadFavicon.innerText = '[ UPLOADING... ]';
+                btnUploadFavicon.disabled = true;
 
-                var formData = new FormData();
+                const formData = new FormData();
                 formData.append('favicon', file);
 
                 try {
-                    var res = await fetch('/api/profile', {
+                    const res = await fetch('/api/profile', {
                         method: 'POST',
                         body: formData,
                     });
-                    var data = await res.json();
-
+                    const data = await res.json();
                     if (res.ok && data.faviconUrl) {
                         faviconPreview.src = data.faviconUrl;
                         faviconUrlInput.value = data.faviconUrl;
-                        alert('Favicon situs berhasil diunggah!');
+                        showAlert('Favicon situs berhasil diunggah!');
                     } else {
-                        alert('Gagal mengunggah favicon: ' + (data.error || 'Unknown error'));
+                        showAlert(data.error || 'Gagal mengunggah favicon.', true);
                     }
                 } catch (err) {
-                    alert('Error koneksi saat upload favicon.');
+                    showAlert('Terjadi kesalahan koneksi saat mengunggah favicon.', true);
                 } finally {
-                    btnUploadFavicon.disabled = false;
                     btnUploadFavicon.innerText = '[ UPLOAD FAVICON ]';
-                    faviconFileInput.value = '';
-                }
-            });
-
-            // Skills Dynamic Rows
-            function attachRemoveSkillListener(btn) {
-                btn.addEventListener('click', function () {
-                    var item = btn.closest('.skill-item');
-                    if (item) item.remove();
-                });
-            }
-
-            document.querySelectorAll('.btn-remove-skill').forEach(attachRemoveSkillListener);
-
-            btnAddSkill.addEventListener('click', function () {
-                var div = document.createElement('div');
-                div.className = 'skill-item flex items-center justify-between gap-2 border border-muted bg-background p-2';
-                div.innerHTML = `
-                    <input
-                        type="text"
-                        placeholder="Skill Name"
-                        class="skill-name bg-transparent border-0 font-mono text-xs text-text focus:ring-0 px-1 py-0.5 flex-1 w-24"
-                    />
-                    <select
-                        class="skill-level bg-surface border border-muted font-mono text-xs text-accent px-1 py-0.5 focus:ring-0 cursor-pointer"
-                    >
-                        <option value="low">low</option>
-                        <option value="medium" selected>medium</option>
-                        <option value="high">high</option>
-                    </select>
-                    <button
-                        type="button"
-                        class="btn-remove-skill font-mono text-xs text-red-400 hover:text-red-300 px-1 cursor-[crosshair]"
-                    >
-                        ✕
-                    </button>
-                `;
-                skillsList.appendChild(div);
-                var removeBtn = div.querySelector('.btn-remove-skill');
-                if (removeBtn) attachRemoveSkillListener(removeBtn);
-            });
-
-            // Form Submit
-            settingsForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-                btnSaveSettings.disabled = true;
-                btnSaveSettings.innerText = '[ SAVING... ]';
-                alertBox.classList.add('hidden');
-
-                var name = document.getElementById('name').value.trim();
-                var title = document.getElementById('title').value.trim();
-                var terminalPrompt = document.getElementById('terminalPrompt').value.trim();
-                var bio = document.getElementById('bio').value.trim();
-                var portfolioBio = document.getElementById('portfolioBio').value.trim();
-                var avatarUrl = avatarUrlInput.value;
-                var faviconUrl = faviconUrlInput.value;
-
-                var skillItems = document.querySelectorAll('.skill-item');
-                var skills = [];
-                skillItems.forEach(function (item) {
-                    var skillName = item.querySelector('.skill-name').value.trim();
-                    var skillLevel = item.querySelector('.skill-level').value;
-                    if (skillName) {
-                        skills.push({ name: skillName, level: skillLevel });
-                    }
-                });
-
-                var payload = {
-                    name: name,
-                    title: title,
-                    terminalPrompt: terminalPrompt,
-                    bio: bio,
-                    portfolioBio: portfolioBio,
-                    avatarUrl: avatarUrl,
-                    faviconUrl: faviconUrl,
-                    skills: skills,
-                };
-
-
-                try {
-                    var res = await fetch('/api/profile', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                    });
-                    var data = await res.json();
-
-                    if (res.ok && data.success) {
-                        alertBox.className = 'border border-green-500/50 bg-green-500/10 text-green-400 p-4 font-mono text-xs';
-                        alertBox.innerText = '[ SUCCESS ] ' + (data.message || 'Profil berhasil disimpan!');
-                        alertBox.classList.remove('hidden');
-
-                        setTimeout(function () {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
-                        alertBox.innerText = '[ ERR ] ' + (data.error || 'Gagal menyimpan profil');
-                        alertBox.classList.remove('hidden');
-                        btnSaveSettings.disabled = false;
-                        btnSaveSettings.innerText = '[ SAVE PROFILE SETTINGS ]';
-                    }
-                } catch (err) {
-                    alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
-                    alertBox.innerText = '[ ERR ] Terjadi kesalahan jaringan saat menyimpan profil.';
-                    alertBox.classList.remove('hidden');
-                    btnSaveSettings.disabled = false;
-                    btnSaveSettings.innerText = '[ SAVE PROFILE SETTINGS ]';
+                    btnUploadFavicon.disabled = false;
                 }
             });
         });

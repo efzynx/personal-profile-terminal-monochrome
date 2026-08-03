@@ -1,0 +1,436 @@
+---
+import { getSession } from '../../../lib/auth';
+import { getProfileData } from '../../../lib/cms';
+
+const session = getSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect('/writer');
+}
+
+let profile = await getProfileData(session.token);
+const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
+---
+
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profile Settings — Writer Admin</title>
+
+    <script is:inline>
+        (function () {
+            var storedTheme = localStorage.getItem('theme') || 'system';
+            var isDark =
+                storedTheme === 'dark' ||
+                (storedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
+        rel="stylesheet"
+    />
+
+    <script is:inline src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script is:inline id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary:    "var(--color-primary)",
+                        background: "var(--color-background)",
+                        surface:    "var(--color-surface)",
+                        border:     "var(--color-border)",
+                        text:       "var(--color-text)",
+                        muted:      "var(--color-muted)",
+                        accent:     "var(--color-accent)",
+                    },
+                    fontFamily: {
+                        mono: ["JetBrains Mono", "monospace"],
+                        sans: ["IBM Plex Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px",
+                    },
+                },
+            },
+        };
+    </script>
+    <style is:global>
+        :root {
+            --color-background: #ffffff;
+            --color-surface: #f4f4f5;
+            --color-border: #e5e5e5;
+            --color-text: #18181b;
+            --color-muted: #71717a;
+            --color-accent: #52525b;
+            --color-primary: #000000;
+        }
+
+        html.dark {
+            --color-background: #000000;
+            --color-surface: #0a0a0a;
+            --color-border: #444444;
+            --color-text: #e0e0e0;
+            --color-muted: #666666;
+            --color-accent: #888888;
+            --color-primary: #ffffff;
+        }
+
+        body {
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: "JetBrains Mono", monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-10">
+    <div class="w-full max-w-5xl flex flex-col gap-6">
+
+        <!-- Top Nav Bar -->
+        <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm border-b border-muted pb-4">
+            <div class="flex items-center gap-2 text-accent">
+                <span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+                <span>{promptPrefix}:~$</span>
+                <span class="text-primary font-bold">cd ~/writer/profile</span>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs">
+                <div class="flex items-center gap-2 text-accent border border-muted px-3 py-1">
+                    {session.avatarUrl && <img src={session.avatarUrl} alt="User" class="w-4 h-4 rounded-full" />}
+                    <span>user: <strong class="text-primary">{session.user}</strong></span>
+                </div>
+
+                <a
+                    href="/api/auth/logout"
+                    class="font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1 no-underline transition-colors cursor-[crosshair]"
+                >
+                    [ LOGOUT ]
+                </a>
+            </div>
+        </nav>
+
+        <!-- Admin Sub-Menu Tabs -->
+        <div class="flex items-center gap-2 font-mono text-xs border-b border-muted pb-2">
+            <a
+                href="/writer/dashboard"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ 📝 Posts CMS ]
+            </a>
+            <a
+                href="/writer/dashboard/profile"
+                class="px-4 py-2 text-primary font-bold bg-surface border border-muted no-underline cursor-[crosshair]"
+            >
+                [ 👤 Profile Settings ]
+            </a>
+            <a
+                href="/writer/dashboard/settings"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ ⚙️ Site Settings ]
+            </a>
+        </div>
+
+        <!-- Header Block -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
+            <div>
+                <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">Profile Settings</h1>
+                <p class="font-mono text-xs text-muted mt-1">Kelola nama, profesi, terminal prompt prefix, foto profil, deskripsi bio, dan keahlian teknis Anda.</p>
+            </div>
+
+            <button
+                type="submit"
+                form="profile-form"
+                id="btn-save-profile"
+                class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-6 py-2.5 transition-colors cursor-[crosshair] flex items-center gap-2 shrink-0"
+            >
+                <span class="material-symbols-outlined text-base">save</span>
+                <span>[ SAVE PROFILE SETTINGS ]</span>
+            </button>
+        </header>
+
+        <div id="alert-box" class="hidden border p-4 font-mono text-xs"></div>
+
+        <!-- Form Profile -->
+        <form id="profile-form" class="flex flex-col gap-6">
+
+            <!-- Profile Info Card -->
+            <div class="bg-surface border border-muted p-6 flex flex-col gap-6">
+                <h2 class="font-mono text-base font-bold text-primary border-b border-muted pb-2 uppercase">&gt; Profile Identity</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-6 items-start">
+                    <!-- Avatar Preview & Upload -->
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="w-32 h-32 border border-muted overflow-hidden bg-background grayscale hover:grayscale-0 transition-all">
+                            <img
+                                id="avatar-preview"
+                                src={profile.avatarUrl || '/saya.avif'}
+                                alt="Profile Avatar"
+                                class="w-full h-full object-cover"
+                            />
+                        </div>
+                        <input type="hidden" id="avatarUrl" value={profile.avatarUrl || '/saya.avif'} />
+                        <button
+                            type="button"
+                            id="btn-upload-avatar"
+                            class="w-full font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-2 py-1.5 cursor-[crosshair] text-center"
+                        >
+                            [ UPLOAD FOTO ]
+                        </button>
+                        <input type="file" id="avatar-file-input" accept="image/*" class="hidden" />
+                    </div>
+
+                    <!-- Identity Inputs -->
+                    <div class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-1">
+                            <label for="name" class="font-mono text-xs text-accent font-bold">NAMA LENGKAP *</label>
+                            <input
+                                type="text"
+                                id="name"
+                                required
+                                value={profile.name}
+                                placeholder="Ahmad Fauzan Adiman"
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                            />
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="title" class="font-mono text-xs text-accent font-bold">PROFESI / TAGLINE</label>
+                            <input
+                                type="text"
+                                id="title"
+                                value={profile.title}
+                                placeholder="Backend Developer & DevOps Enthusiast"
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                            />
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="terminalPrompt" class="font-mono text-xs text-accent font-bold">TERMINAL PROMPT PREFIX (CONTOH: user@tux / dev@laptop)</label>
+                            <input
+                                type="text"
+                                id="terminalPrompt"
+                                value={profile.terminalPrompt || 'fauzan@tux'}
+                                placeholder="fauzan@tux"
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                            />
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="bio" class="font-mono text-xs text-accent font-bold">HOMEPAGE BIO ("WHO AM I")</label>
+                            <textarea
+                                id="bio"
+                                rows="3"
+                                placeholder="Tulis deskripsi singkat yang akan tampil di halaman Homepage..."
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text p-3 resize-y leading-relaxed"
+                            >{profile.bio}</textarea>
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="portfolioBio" class="font-mono text-xs text-accent font-bold">PORTFOLIO BIO</label>
+                            <textarea
+                                id="portfolioBio"
+                                rows="2"
+                                placeholder="Tulis deskripsi singkat untuk sidebar halaman Portfolio..."
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text p-3 resize-y leading-relaxed"
+                            >{profile.portfolioBio}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills Card -->
+            <div class="bg-surface border border-muted p-6 flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-muted pb-2">
+                    <h2 class="font-mono text-base font-bold text-primary uppercase">&gt; Tech Skills Management</h2>
+                    <button
+                        type="button"
+                        id="btn-add-skill"
+                        class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-3 py-1 cursor-[crosshair]"
+                    >
+                        [ + TAMBAH SKILL ]
+                    </button>
+                </div>
+
+                <div id="skills-container" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {profile.skills.map((skill: any, idx: number) => (
+                        <div class="skill-item flex items-center gap-2 bg-background border border-muted p-2">
+                            <input
+                                type="text"
+                                value={skill.name}
+                                placeholder="Nama Skill (misal: Docker)"
+                                class="skill-name flex-1 bg-surface border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-2 py-1"
+                            />
+                            <select
+                                class="skill-level bg-surface border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-2 py-1"
+                            >
+                                <option value="low" selected={skill.level === 'low'}>Low</option>
+                                <option value="medium" selected={skill.level === 'medium'}>Medium</option>
+                                <option value="high" selected={skill.level === 'high'}>High</option>
+                            </select>
+                            <button
+                                type="button"
+                                class="btn-remove-skill font-mono text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-transparent hover:border-red-500/40 cursor-[crosshair]"
+                            >
+                                [X]
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+        </form>
+
+    </div>
+
+    <script is:inline>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('profile-form');
+            const alertBox = document.getElementById('alert-box');
+            const btnSave = document.getElementById('btn-save-profile');
+            const btnUploadAvatar = document.getElementById('btn-upload-avatar');
+            const avatarFileInput = document.getElementById('avatar-file-input');
+            const avatarPreview = document.getElementById('avatar-preview');
+            const avatarUrlInput = document.getElementById('avatarUrl');
+            const btnAddSkill = document.getElementById('btn-add-skill');
+            const skillsContainer = document.getElementById('skills-container');
+
+            function showAlert(message, isError = false) {
+                alertBox.classList.remove('hidden', 'bg-green-500/10', 'border-green-500/40', 'text-green-400', 'bg-red-500/10', 'border-red-500/40', 'text-red-400');
+                if (isError) {
+                    alertBox.classList.add('bg-red-500/10', 'border-red-500/40', 'text-red-400');
+                    alertBox.innerHTML = `[ ERROR ] ${message}`;
+                } else {
+                    alertBox.classList.add('bg-green-500/10', 'border-green-500/40', 'text-green-400');
+                    alertBox.innerHTML = `[ SUCCESS ] ${message}`;
+                }
+                alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // Upload Avatar
+            btnUploadAvatar?.addEventListener('click', () => avatarFileInput?.click());
+            avatarFileInput?.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                btnUploadAvatar.innerText = '[ UPLOADING... ]';
+                btnUploadAvatar.disabled = true;
+
+                const formData = new FormData();
+                formData.append('avatar', file);
+
+                try {
+                    const res = await fetch('/api/profile', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.avatarUrl) {
+                        avatarPreview.src = data.avatarUrl;
+                        avatarUrlInput.value = data.avatarUrl;
+                        showAlert('Foto profil berhasil diunggah!');
+                    } else {
+                        showAlert(data.error || 'Gagal mengunggah foto profil.', true);
+                    }
+                } catch (err) {
+                    showAlert('Terjadi kesalahan koneksi saat mengunggah foto.', true);
+                } finally {
+                    btnUploadAvatar.innerText = '[ UPLOAD FOTO ]';
+                    btnUploadAvatar.disabled = false;
+                }
+            });
+
+            // Skills Management
+            skillsContainer?.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-remove-skill')) {
+                    const skillItem = e.target.closest('.skill-item');
+                    skillItem?.remove();
+                }
+            });
+
+            btnAddSkill?.addEventListener('click', () => {
+                const div = document.createElement('div');
+                div.className = 'skill-item flex items-center gap-2 bg-background border border-muted p-2';
+                div.innerHTML = `
+                    <input
+                        type="text"
+                        placeholder="Nama Skill Baru"
+                        class="skill-name flex-1 bg-surface border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-2 py-1"
+                    />
+                    <select
+                        class="skill-level bg-surface border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-2 py-1"
+                    >
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                    <button
+                        type="button"
+                        class="btn-remove-skill font-mono text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-transparent hover:border-red-500/40 cursor-[crosshair]"
+                    >
+                        [X]
+                    </button>
+                `;
+                skillsContainer?.appendChild(div);
+            });
+
+            // Save Form
+            form?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                btnSave.innerText = '[ SAVING... ]';
+                btnSave.disabled = true;
+
+                const skills = [];
+                document.querySelectorAll('.skill-item').forEach((item) => {
+                    const name = item.querySelector('.skill-name')?.value.trim();
+                    const level = item.querySelector('.skill-level')?.value;
+                    if (name) {
+                        skills.push({ name, level });
+                    }
+                });
+
+                const payload = {
+                    name: document.getElementById('name')?.value.trim(),
+                    title: document.getElementById('title')?.value.trim(),
+                    terminalPrompt: document.getElementById('terminalPrompt')?.value.trim() || 'fauzan@tux',
+                    bio: document.getElementById('bio')?.value.trim(),
+                    portfolioBio: document.getElementById('portfolioBio')?.value.trim(),
+                    avatarUrl: avatarUrlInput.value,
+                    faviconUrl: document.getElementById('faviconUrl')?.value || '/favicon.svg',
+                    skills,
+                };
+
+                try {
+                    const res = await fetch('/api/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showAlert(data.message || 'Profil berhasil disimpan!');
+                    } else {
+                        showAlert(data.error || 'Gagal menyimpan profil.', true);
+                    }
+                } catch (err) {
+                    showAlert('Terjadi kesalahan jaringan.', true);
+                } finally {
+                    btnSave.innerText = '[ SAVE PROFILE SETTINGS ]';
+                    btnSave.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

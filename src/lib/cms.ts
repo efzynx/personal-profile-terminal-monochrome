@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { uploadToCloudinaryViaOAuth } from './cloudinary';
+
 
 export interface PostFrontmatter {
   title: string;
@@ -38,8 +40,12 @@ export interface ProfileData {
   portfolioBio: string;
   avatarUrl: string;
   faviconUrl?: string;
+  cloudinaryAccessToken?: string;
+  cloudinaryRefreshToken?: string;
+  cloudinaryTokenExpiresAt?: number;
   skills: ProfileSkill[];
 }
+
 
 function isProductionEnv(): boolean {
   return process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
@@ -241,6 +247,12 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
 }
 
 export async function saveAvatarImage(filename: string, buffer: Buffer, token?: string): Promise<string> {
+  // Coba unggah ke Cloudinary via OAuth
+  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'profile_avatar', token);
+  if (cldResult.url) {
+    return cldResult.url;
+  }
+
   if (!isProductionEnv()) {
     const avatarDir = path.resolve(process.cwd(), 'public/images/avatar');
     if (!fs.existsSync(avatarDir)) {
@@ -287,6 +299,12 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
     return { error: `Format file ${ext} tidak diizinkan. Gunakan format SVG, PNG, ICO, atau WEBP.` };
   }
 
+  // Coba unggah ke Cloudinary via OAuth
+  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'site_favicon', token);
+  if (cldResult.url) {
+    return { url: cldResult.url };
+  }
+
   if (!isProductionEnv()) {
     const faviconDir = path.resolve(process.cwd(), 'public/images/favicon');
     if (!fs.existsSync(faviconDir)) {
@@ -318,6 +336,7 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
 
   return { url: `/images/favicon/${filename}` };
 }
+
 
 // --- POSTS MANAGEMENT ---
 
@@ -491,6 +510,12 @@ export async function deletePost(slug: string, token?: string): Promise<{ succes
 }
 
 export async function saveImageFile(filename: string, buffer: Buffer, token?: string): Promise<string> {
+  // Coba unggah ke Cloudinary via OAuth
+  const cldResult = await uploadToCloudinaryViaOAuth(buffer, 'blog_posts', token);
+  if (cldResult.url) {
+    return cldResult.url;
+  }
+
   if (!isProductionEnv()) {
     const localImagesDir = getLocalImagesDir();
     const destPath = path.join(localImagesDir, filename);
@@ -519,3 +544,4 @@ export async function saveImageFile(filename: string, buffer: Buffer, token?: st
 
   return `/images/posts/${filename}`;
 }
+
