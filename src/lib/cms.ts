@@ -164,16 +164,36 @@ export function stringifyFrontmatter(frontmatter: PostFrontmatter, content: stri
   return yaml;
 }
 
-async function githubFetch(urlPath: string, options: RequestInit = {}, token?: string) {
+/**
+ * READ-ONLY GitHub fetch — boleh fallback ke GITHUB_TOKEN dari env.
+ * Hanya untuk operasi GET (membaca konten repo).
+ */
+async function githubReadFetch(urlPath: string, token?: string) {
   const authToken = token || process.env.GITHUB_TOKEN;
   const headers = {
     Accept: 'application/vnd.github+json',
     Authorization: authToken ? `Bearer ${authToken}` : '',
     'User-Agent': 'Writer-App',
+  };
+  return fetch(`https://api.github.com${urlPath}`, { headers });
+}
+
+/**
+ * WRITE GitHub fetch — WAJIB menggunakan session token dari OAuth login.
+ * Tidak boleh fallback ke GITHUB_TOKEN agar token tersebut tetap read-only.
+ * Lempar error jika session token tidak disediakan.
+ */
+async function githubWriteFetch(urlPath: string, options: RequestInit, sessionToken: string) {
+  if (!sessionToken) {
+    throw new Error('Session token diperlukan untuk operasi tulis. Silakan login ulang.');
+  }
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${sessionToken}`,
+    'User-Agent': 'Writer-App',
     ...options.headers,
   };
-  const res = await fetch(`https://api.github.com${urlPath}`, { ...options, headers });
-  return res;
+  return fetch(`https://api.github.com${urlPath}`, { ...options, headers });
 }
 
 // --- PROFILE MANAGEMENT ---
@@ -193,7 +213,7 @@ export async function getProfileData(token?: string): Promise<ProfileData> {
   const owner = getGithubOwner();
   const repo = getGithubRepo();
   const branch = getGithubDataBranch();
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/profile.json?ref=${branch}`, {}, token);
+  const res = await githubReadFetch(`/repos/${owner}/${repo}/contents/src/content/profile.json?ref=${branch}`, token);
   if (res.ok) {
     const fileData = await res.json();
     const raw = Buffer.from(fileData.content, 'base64').toString('utf-8');
@@ -226,8 +246,12 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
   const branch = getGithubDataBranch();
   const targetPath = 'src/content/profile.json';
 
+  if (!token) {
+    return { success: false, message: 'Session token diperlukan. Silakan login ulang.' };
+  }
+
   let sha: string | undefined;
-  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, {}, token);
+  const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
   if (existingRes.ok) {
     const existingData = await existingRes.json();
     sha = existingData.sha;
@@ -240,7 +264,7 @@ export async function saveProfileData(data: ProfileData, token?: string): Promis
     sha,
   };
 
-  const putRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+  const putRes = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   }, token);
@@ -281,7 +305,11 @@ export async function saveAvatarImage(filename: string, buffer: Buffer, token?: 
     branch,
   };
 
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+  if (!token) {
+    throw new Error('Session token diperlukan untuk upload foto profil. Silakan login ulang.');
+  }
+
+  const res = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   }, token);
@@ -335,7 +363,11 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
     branch,
   };
 
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+  if (!token) {
+    return { error: 'Session token diperlukan untuk upload favicon. Silakan login ulang.' };
+  }
+
+  const res = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   }, token);
@@ -373,14 +405,14 @@ export async function listPosts(token?: string): Promise<PostItem[]> {
   const owner = getGithubOwner();
   const repo = getGithubRepo();
   const branch = getGithubDataBranch();
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/src/content/posts?ref=${branch}`, {}, token);
+  const res = await githubReadFetch(`/repos/${owner}/${repo}/contents/src/content/posts?ref=${branch}`, token);
   if (!res.ok) return [];
   const items = await res.json();
   const posts: PostItem[] = [];
 
   for (const item of items) {
     if (item.name.endsWith('.md') || item.name.endsWith('.mdx')) {
-      const fileRes = await githubFetch(`/repos/${owner}/${repo}/contents/${item.path}?ref=${branch}`, {}, token);
+      const fileRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${item.path}?ref=${branch}`, token);
       if (fileRes.ok) {
         const fileData = await fileRes.json();
         const raw = Buffer.from(fileData.content, 'base64').toString('utf-8');
@@ -412,7 +444,7 @@ export async function getPost(slug: string, token?: string): Promise<PostItem | 
   const repo = getGithubRepo();
   const branch = getGithubDataBranch();
   const filePath = `src/content/posts/${slug}.md`;
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`, {}, token);
+  const res = await githubReadFetch(`/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`, token);
   if (!res.ok) return null;
 
   const data = await res.json();
@@ -443,8 +475,12 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
   const branch = getGithubDataBranch();
   const targetPath = `src/content/posts/${slug}.md`;
 
+  if (!token) {
+    return { success: false, message: 'Session token diperlukan. Silakan login ulang.' };
+  }
+
   let sha: string | undefined;
-  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, {}, token);
+  const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
   if (existingRes.ok) {
     const existingData = await existingRes.json();
     sha = existingData.sha;
@@ -457,7 +493,7 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
     sha,
   };
 
-  const putRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+  const putRes = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   }, token);
@@ -469,10 +505,10 @@ export async function savePost(input: SavePostInput, token?: string): Promise<{ 
 
   if (oldSlug && oldSlug !== slug) {
     const oldPath = `src/content/posts/${oldSlug}.md`;
-    const oldRes = await githubFetch(`/repos/${owner}/${repo}/contents/${oldPath}?ref=${branch}`, {}, token);
+    const oldRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${oldPath}?ref=${branch}`, token);
     if (oldRes.ok) {
       const oldData = await oldRes.json();
-      await githubFetch(`/repos/${owner}/${repo}/contents/${oldPath}`, {
+      await githubWriteFetch(`/repos/${owner}/${repo}/contents/${oldPath}`, {
         method: 'DELETE',
         body: JSON.stringify({
           message: `refactor(blog): delete old post ${oldSlug}`,
@@ -505,13 +541,17 @@ export async function deletePost(slug: string, token?: string): Promise<{ succes
   const branch = getGithubDataBranch();
   const targetPath = `src/content/posts/${slug}.md`;
 
-  const existingRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, {}, token);
+  if (!token) {
+    return { success: false, message: 'Session token diperlukan. Silakan login ulang.' };
+  }
+
+  const existingRes = await githubReadFetch(`/repos/${owner}/${repo}/contents/${targetPath}?ref=${branch}`, token);
   if (!existingRes.ok) {
     return { success: false, message: 'Postingan tidak ditemukan di GitHub.' };
   }
   const existingData = await existingRes.json();
 
-  const delRes = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+  const delRes = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
     method: 'DELETE',
     body: JSON.stringify({
       message: `feat(blog): delete post ${slug}`,
@@ -552,7 +592,11 @@ export async function saveImageFile(filename: string, buffer: Buffer, token?: st
     branch,
   };
 
-  const res = await githubFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
+  if (!token) {
+    throw new Error('Session token diperlukan untuk upload gambar. Silakan login ulang.');
+  }
+
+  const res = await githubWriteFetch(`/repos/${owner}/${repo}/contents/${targetPath}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   }, token);

@@ -9,9 +9,7 @@ const posts = allPosts.sort(
     (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
 
-function formatDate(d: Date) {
-    return d.toISOString().slice(0, 10);
-}
+import { formatDate } from "../../lib/utils";
 import profileData from "../../content/profile.json";
 
 const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('@')[0] : "user";
