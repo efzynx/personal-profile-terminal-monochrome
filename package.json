@@ -11,8 +11,11 @@
   },
   "dependencies": {
     "@astrojs/vercel": "^10.0.4",
+    "@supabase/supabase-js": "^2.111.0",
     "@tailwindcss/vite": "^4.2.2",
     "astro": "^6.1.5",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9",
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
