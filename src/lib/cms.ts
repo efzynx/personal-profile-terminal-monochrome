@@ -277,6 +277,10 @@ export async function saveAvatarImage(filename: string, buffer: Buffer, token?: 
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
+        const { data: bData } = await supabase.storage.getBucket('media');
+        if (!bData) {
+          await supabase.storage.createBucket('media', { public: true });
+        }
         const ext = filename.split('.').pop()?.toLowerCase() || 'png';
         const storagePath = `avatars/${filename}`;
         const { data, error } = await supabase.storage.from('media').upload(storagePath, buffer, {
@@ -286,6 +290,8 @@ export async function saveAvatarImage(filename: string, buffer: Buffer, token?: 
         if (!error && data) {
           const { data: pubUrlData } = supabase.storage.from('media').getPublicUrl(storagePath);
           if (pubUrlData?.publicUrl) return pubUrlData.publicUrl;
+        } else if (error) {
+          console.error('Supabase avatar storage error:', error);
         }
       } catch (err) {
         console.error('Error uploading avatar to Supabase Storage:', err);
@@ -323,6 +329,10 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
+        const { data: bData } = await supabase.storage.getBucket('media');
+        if (!bData) {
+          await supabase.storage.createBucket('media', { public: true });
+        }
         const cleanExt = ext.replace('.', '');
         const storagePath = `favicons/${filename}`;
         const { data, error } = await supabase.storage.from('media').upload(storagePath, buffer, {
@@ -332,6 +342,8 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
         if (!error && data) {
           const { data: pubUrlData } = supabase.storage.from('media').getPublicUrl(storagePath);
           if (pubUrlData?.publicUrl) return { url: pubUrlData.publicUrl };
+        } else if (error) {
+          console.error('Supabase favicon storage error:', error);
         }
       } catch (err) {
         console.error('Error uploading favicon to Supabase Storage:', err);
