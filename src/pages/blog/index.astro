@@ -8,11 +8,14 @@ const profileData = await getProfileData();
 const posts = await listPosts();
 
 const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('@')[0] : "user";
+
+// Extract all unique categories
+const categories = Array.from(new Set(posts.map(p => p.frontmatter.category || 'General')));
 ---
 
 <BaseLayout
     title="Blog"
-    description={`Catatan teknis ${profileData.name}`}
+    description={`Catatan teknis & tulisan ${profileData.name}`}
     breadcrumb="cd ~/blog"
     backHref="/"
     backLabel="cd ~/"
@@ -22,47 +25,160 @@ const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('
         <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary">
             total {posts.length} posts
         </h1>
-        <p class="font-mono text-sm text-accent mt-2">
+        <p class="font-mono text-xs text-accent mt-2">
             drwxr-xr-x {username} users 4096 . ~/blog
         </p>
     </header>
 
+    <!-- Search & Category Filter Toolbar -->
+    <div class="flex flex-col gap-3 py-2 border-b border-muted">
+        <!-- Live Search Input -->
+        <div class="relative w-full">
+            <span class="absolute left-3 top-2.5 font-mono text-xs text-accent select-none">&gt; grep:</span>
+            <input
+                type="text"
+                id="search-input"
+                placeholder="Cari artikel berdasarkan judul, kategori, atau tag..."
+                class="w-full bg-surface border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text pl-20 pr-4 py-2"
+            />
+        </div>
+
+        <!-- Category Pills -->
+        {categories.length > 0 && (
+            <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
+                <span class="text-accent font-bold">[FILTER]:</span>
+                <button
+                    type="button"
+                    class="filter-btn active-filter border border-primary bg-primary text-background px-2.5 py-1 cursor-[crosshair]"
+                    data-category="all"
+                >
+                    [ ALL ]
+                </button>
+                {categories.map((cat) => (
+                    <button
+                        type="button"
+                        class="filter-btn border border-muted bg-surface text-accent hover:text-primary hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors"
+                        data-category={cat.toLowerCase()}
+                    >
+                        [{cat}]
+                    </button>
+                ))}
+            </div>
+        )}
+    </div>
 
     <!-- Table header (desktop only) -->
     <div
-        class="hidden md:grid grid-cols-[120px_120px_1fr] gap-4 px-4 py-2 font-mono text-sm font-bold border-b border-muted text-primary uppercase"
+        class="hidden md:grid grid-cols-[120px_120px_1fr] gap-4 px-4 py-2 font-mono text-xs font-bold border-b border-muted text-primary uppercase"
     >
         <div>Date</div>
         <div>Category</div>
-        <div>Title</div>
+        <div>Title & Description</div>
     </div>
 
     <!-- Post list -->
-    <div class="flex flex-col">
+    <div id="posts-container" class="flex flex-col">
         {
             posts.length === 0 ? (
                 <div class="py-12 flex justify-center border border-dashed border-muted">
-                    <p class="font-mono text-sm text-accent">No posts found.</p>
+                    <p class="font-mono text-xs text-accent">Belum ada artikel yang dipublikasikan.</p>
                 </div>
             ) : (
-                posts.map((post) => (
-                    <a
-                        id={`post-${post.slug}`}
-                        href={`/blog/posts/${post.slug}`}
-                        class="terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
-                    >
-                        <div class="font-mono text-sm text-accent self-center">
-                            {formatDate(post.frontmatter.pubDate)}
-                        </div>
-                        <div class="font-mono text-sm text-muted self-center font-bold tracking-wider">
-                            [{post.frontmatter.category}]
-                        </div>
-                        <div class="font-sans text-base text-text self-center title-text group-hover:text-primary transition-colors duration-0">
-                            {post.frontmatter.title}
-                        </div>
-                    </a>
-                ))
+                posts.map((post) => {
+                    const catLower = (post.frontmatter.category || 'general').toLowerCase();
+                    const tagsStr = (post.frontmatter.tags || []).join(' ').toLowerCase();
+                    const searchHaystack = `${post.frontmatter.title} ${post.frontmatter.description || ''} ${catLower} ${tagsStr}`.toLowerCase();
+                    
+                    return (
+                        <a
+                            id={`post-${post.slug}`}
+                            href={`/blog/posts/${post.slug}`}
+                            data-category={catLower}
+                            data-search={searchHaystack}
+                            class="post-row terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
+                        >
+                            <div class="font-mono text-xs text-accent self-start md:self-center">
+                                {formatDate(post.frontmatter.pubDate)}
+                            </div>
+                            <div class="font-mono text-xs text-muted self-start md:self-center font-bold tracking-wider">
+                                [{post.frontmatter.category || 'General'}]
+                            </div>
+                            <div class="flex flex-col gap-1 self-center">
+                                <div class="font-sans text-base font-medium text-text title-text group-hover:text-primary transition-colors duration-0">
+                                    {post.frontmatter.title}
+                                </div>
+                                {post.frontmatter.description && (
+                                    <p class="font-sans text-xs text-accent line-clamp-1">
+                                        {post.frontmatter.description}
+                                    </p>
+                                )}
+                            </div>
+                        </a>
+                    );
+                })
             )
         }
     </div>
+
+    <div id="no-results" class="hidden py-12 flex justify-center border border-dashed border-muted">
+        <p class="font-mono text-xs text-accent">Hasil pencarian tidak ditemukan.</p>
+    </div>
+
+    <!-- Client-Side Filter Script -->
+    <script is:inline>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('search-input');
+            const postRows = document.querySelectorAll('.post-row');
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            const noResults = document.getElementById('no-results');
+
+            let activeCategory = 'all';
+
+            function filterPosts() {
+                const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+                let visibleCount = 0;
+
+                postRows.forEach((row) => {
+                    const rowCat = row.getAttribute('data-category');
+                    const rowSearch = row.getAttribute('data-search');
+
+                    const matchesCategory = activeCategory === 'all' || rowCat === activeCategory;
+                    const matchesSearch = !query || (rowSearch && rowSearch.includes(query));
+
+                    if (matchesCategory && matchesSearch) {
+                        row.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                });
+
+                if (noResults) {
+                    if (visibleCount === 0) {
+                        noResults.classList.remove('hidden');
+                    } else {
+                        noResults.classList.add('hidden');
+                    }
+                }
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', filterPosts);
+            }
+
+            filterBtns.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach((b) => {
+                        b.classList.remove('active-filter', 'bg-primary', 'text-background');
+                        b.classList.add('bg-surface', 'text-accent');
+                    });
+                    btn.classList.add('active-filter', 'bg-primary', 'text-background');
+                    btn.classList.remove('bg-surface', 'text-accent');
+
+                    activeCategory = btn.getAttribute('data-category') || 'all';
+                    filterPosts();
+                });
+            });
+        });
+    </script>
 </BaseLayout>

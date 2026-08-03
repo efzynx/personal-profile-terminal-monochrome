@@ -3,7 +3,7 @@ export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getPost } from "../../../lib/cms";
 import { formatDate, calculateReadTime } from "../../../lib/utils";
-import { marked } from "marked";
+import { Marked } from "marked";
 
 const { id } = Astro.params;
 const post = await getPost(id || "");
@@ -12,8 +12,67 @@ if (!post) {
     return Astro.redirect("/blog");
 }
 
-const readTime = calculateReadTime(post.content || "");
-const htmlContent = marked.parse(post.content || "");
+const rawContent = post.content || "";
+const readTime = calculateReadTime(rawContent);
+
+// Extract Headings for Table of Contents (TOC)
+interface TocItem {
+    depth: number;
+    text: string;
+    id: string;
+}
+
+const toc: TocItem[] = [];
+const headingRegex = /^(#{2,3})\s+(.+)$/gm;
+let match;
+while ((match = headingRegex.exec(rawContent)) !== null) {
+    const depth = match[1].length;
+    const text = match[2].trim().replace(/[*_~`]/g, "");
+    const slugId = text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-");
+    toc.push({ depth, text, id: slugId });
+}
+
+// Configured marked parser with custom heading IDs & table wrappers
+const markedInstance = new Marked();
+markedInstance.use({
+    renderer: {
+        heading(token) {
+            const text = token.text;
+            const level = token.depth;
+            const cleanText = text.replace(/<[^>]*>/g, "");
+            const slugId = cleanText
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, "")
+                .replace(/\s+/g, "-");
+            return `<h${level} id="${slugId}">${text}</h${level}>`;
+        },
+        table(token) {
+            let headerHtml = "";
+            let bodyHtml = "";
+
+            token.header.forEach((cell) => {
+                headerHtml += `<th>${cell.text}</th>`;
+            });
+            token.rows.forEach((row) => {
+                let rowHtml = "";
+                row.forEach((cell) => {
+                    rowHtml += `<td>${cell.text}</td>`;
+                });
+                bodyHtml += `<tr>${rowHtml}</tr>`;
+            });
+
+            return `<div class="table-container"><table class="markdown-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+        },
+        hr() {
+            return `<hr class="terminal-hr" />`;
+        },
+    },
+});
+
+const htmlContent = markedInstance.parse(rawContent);
 ---
 
 <BaseLayout
@@ -32,17 +91,53 @@ const htmlContent = marked.parse(post.content || "");
             <span class="text-muted">|</span>
             <span>&gt; read_time: {readTime}m</span>
         </div>
-        <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary leading-tight mb-4">
+        <h1 class="font-mono text-2xl md:text-4xl font-bold text-primary leading-tight mb-4 tracking-tight">
             {post.frontmatter.title}
         </h1>
+        {post.frontmatter.description && (
+            <p class="font-sans text-base text-accent leading-relaxed mb-4">
+                {post.frontmatter.description}
+            </p>
+        )}
         <div class="flex flex-wrap gap-2">
             {post.frontmatter.tags && post.frontmatter.tags.map((tag: string) => (
-                <span class="border border-muted bg-surface font-mono text-xs text-text px-2 py-1">
-                    [{tag}]
+                <span class="border border-muted bg-surface font-mono text-xs text-text px-2.5 py-1">
+                    #{tag}
                 </span>
             ))}
         </div>
     </header>
+
+    <!-- Optional Cover Image -->
+    {post.frontmatter.coverImage && (
+        <div class="my-6 border border-muted bg-surface overflow-hidden">
+            <img
+                src={post.frontmatter.coverImage}
+                alt={post.frontmatter.title}
+                class="w-full max-h-[400px] object-cover"
+                loading="eager"
+            />
+        </div>
+    )}
+
+    <!-- Table of Contents (If 2 or more headings exist) -->
+    {toc.length >= 2 && (
+        <details class="bg-surface border border-muted p-4 my-6 font-mono text-xs" open>
+            <summary class="font-bold text-primary cursor-pointer uppercase select-none flex items-center justify-between">
+                <span>&gt; Table of Contents [{toc.length} sections]</span>
+                <span class="text-accent text-[10px]">[TOGGLE]</span>
+            </summary>
+            <ul class="mt-3 space-y-1.5 pl-2 border-l border-muted">
+                {toc.map((item) => (
+                    <li class={item.depth === 3 ? "pl-4 text-accent" : "text-text font-bold"}>
+                        <a href={`#${item.id}`} class="hover:text-primary no-underline hover:underline cursor-[crosshair]">
+                            {item.depth === 3 ? "└ " : "├ "}{item.text}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </details>
+    )}
 
     <!-- Article body -->
     <article class="article-content font-sans text-base text-text leading-relaxed mt-6" set:html={htmlContent}>
@@ -52,44 +147,159 @@ const htmlContent = marked.parse(post.content || "");
     <footer class="border-t border-muted pt-6 font-mono text-sm text-accent flex justify-between items-center mt-8">
         <span>EOF</span>
         <div class="flex gap-4">
-            <a href="/blog" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Back]</a>
+            <a href="/blog" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Back to Blog]</a>
             <a href="#" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Top ↑]</a>
         </div>
     </footer>
 </BaseLayout>
 
-<style>
+<style is:global>
+    /* Global Article Content Styling */
     .article-content {
         overflow-wrap: anywhere;
         word-break: break-word;
     }
-    .article-content p { margin-bottom: 1.25rem; line-height: 1.75; overflow-wrap: anywhere; word-break: break-word; }
+    .article-content p {
+        margin-bottom: 1.5rem;
+        line-height: 1.8;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
     .article-content h2 {
         font-family: "JetBrains Mono", monospace;
-        font-size: 1.25rem; font-weight: 700; color: var(--color-primary);
-        margin-top: 2rem; margin-bottom: 0.75rem;
-        border-left: 2px solid var(--color-primary); padding-left: 0.75rem;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        margin-top: 2.25rem;
+        margin-bottom: 1rem;
+        border-left: 3px solid var(--color-primary);
+        padding-left: 0.85rem;
+        scroll-margin-top: 2rem;
     }
     .article-content h3 {
         font-family: "JetBrains Mono", monospace;
-        font-size: 1.1rem; font-weight: 600; color: var(--color-text);
-        margin-top: 1.5rem; margin-bottom: 0.5rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: var(--color-text);
+        margin-top: 1.75rem;
+        margin-bottom: 0.75rem;
+        scroll-margin-top: 2rem;
     }
-    .article-content ul, .article-content ol { padding-left: 1.5rem; margin-bottom: 1.25rem; }
-    .article-content li { margin-bottom: 0.4rem; line-height: 1.7; }
-    .article-content a { color: var(--color-primary); border-bottom: 1px dashed var(--color-accent); }
-    .article-content a:hover { border-color: var(--color-primary); }
-    .article-content code {
-        font-family: "JetBrains Mono", monospace; font-size: 0.875em;
-        background-color: var(--color-surface); border: 1px solid var(--color-border);
-        padding: 0.1rem 0.35rem; color: var(--color-text);
+    .article-content h4, .article-content h5, .article-content h6 {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-muted);
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+    .article-content ul, .article-content ol {
+        padding-left: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .article-content ul { list-style-type: disc; }
+    .article-content ol { list-style-type: decimal; }
+    .article-content li {
+        margin-bottom: 0.5rem;
+        line-height: 1.75;
+    }
+    .article-content a {
+        color: var(--color-primary);
+        border-bottom: 1px dashed var(--color-accent);
+        text-decoration: none;
+        transition: border-color 0.2s ease;
+    }
+    .article-content a:hover {
+        border-color: var(--color-primary);
+    }
+    .article-content inline-code, .article-content code:not(pre code) {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.875em;
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        padding: 0.15rem 0.4rem;
+        color: var(--color-text);
     }
     .article-content pre {
-        background-color: var(--color-surface); border: 1px solid var(--color-border);
-        padding: 1rem; overflow-x: auto; margin-bottom: 1.25rem;
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        padding: 1.25rem;
+        overflow-x: auto;
+        margin-bottom: 1.5rem;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.875rem;
+        line-height: 1.6;
     }
-    .article-content pre code { border: none; padding: 0; background: transparent; font-size: 0.875rem; }
-    .article-content blockquote { border-left: 2px solid var(--color-border); padding-left: 1rem; color: var(--color-accent); margin: 1.25rem 0; }
-    .article-content img { max-width: 100%; height: auto; border: 1px solid var(--color-border); margin: 1.5rem 0; display: block; }
-    .article-content video { max-width: 100%; height: auto; margin: 1.5rem 0; }
+    .article-content pre code {
+        border: none;
+        padding: 0;
+        background: transparent;
+        font-size: inherit;
+        color: var(--color-text);
+    }
+    .article-content blockquote {
+        border-left: 3px solid var(--color-border);
+        background-color: var(--color-surface);
+        padding: 1rem 1.25rem;
+        color: var(--color-text);
+        margin: 1.5rem 0;
+        font-style: italic;
+    }
+    .article-content img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--color-border);
+        margin: 1.75rem 0;
+        display: block;
+        background-color: var(--color-surface);
+    }
+    .article-content video {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--color-border);
+        margin: 1.75rem 0;
+    }
+    .article-content .table-container {
+        width: 100%;
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        border: 1px solid var(--color-border);
+    }
+    .article-content .markdown-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.875rem;
+        text-align: left;
+    }
+    .article-content .markdown-table th {
+        background-color: var(--color-surface);
+        color: var(--color-primary);
+        font-weight: 700;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--color-border);
+        text-transform: uppercase;
+    }
+    .article-content .markdown-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px dashed var(--color-border);
+        color: var(--color-text);
+    }
+    .article-content .markdown-table tr:hover td {
+        background-color: var(--color-surface);
+    }
+    .article-content .terminal-hr {
+        border: none;
+        border-top: 1px dashed var(--color-border);
+        margin: 2rem 0;
+    }
+    .article-content kbd {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.75rem;
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        box-shadow: 0 2px 0 var(--color-border);
+        padding: 0.15rem 0.4rem;
+        color: var(--color-primary);
+    }
 </style>
