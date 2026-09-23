@@ -13,6 +13,12 @@ export const profiles = pgTable('profiles', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const siteSettings = pgTable('site_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 export const posts = pgTable('posts', {
   id: text('id').primaryKey(),
   slug: text('slug').notNull().unique(),

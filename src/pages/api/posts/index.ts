@@ -3,13 +3,11 @@ import { getSession } from '../../../lib/auth';
 import { listPosts, savePost } from '../../../lib/cms';
 
 export const GET: APIRoute = async ({ cookies }) => {
+  // Auth sudah divalidasi di middleware (session cookie ATAU API key)
   const session = getSession(cookies);
-  if (!session) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-  }
 
   try {
-    const posts = await listPosts(session.token);
+    const posts = await listPosts(session?.token);
     return new Response(JSON.stringify({ posts }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -20,10 +18,8 @@ export const GET: APIRoute = async ({ cookies }) => {
 };
 
 export const POST: APIRoute = async ({ cookies, request }) => {
+  // Auth sudah divalidasi di middleware (session cookie ATAU API key)
   const session = getSession(cookies);
-  if (!session) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-  }
 
   try {
     const body = await request.json();
@@ -33,7 +29,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       return new Response(JSON.stringify({ error: 'Slug dan Judul wajib diisi' }), { status: 400 });
     }
 
-    const result = await savePost({ slug, oldSlug, frontmatter, content: content || '' }, session.token);
+    const result = await savePost({ slug, oldSlug, frontmatter, content: content || '' }, session?.token);
 
     if (!result.success) {
       return new Response(JSON.stringify({ error: result.message }), { status: 500 });

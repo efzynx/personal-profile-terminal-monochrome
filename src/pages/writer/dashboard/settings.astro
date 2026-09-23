@@ -212,6 +212,76 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                 </div>
             </div>
 
+            <!-- API Key Management Card -->
+            <div class="bg-surface border border-muted p-6 flex flex-col gap-6">
+                <h2 class="font-mono text-base font-bold text-primary border-b border-muted pb-2 uppercase">&gt; API Key — Integrasi Eksternal</h2>
+
+                <div class="flex flex-col gap-4">
+                    <div class="bg-background border border-muted p-4 font-mono text-xs space-y-2">
+                        <p class="text-primary font-bold border-b border-muted pb-1">
+                            🔑 Tentang API Key
+                        </p>
+                        <ul class="list-disc list-inside text-accent space-y-1.5 leading-relaxed pl-1">
+                            <li>API key memungkinkan <strong class="text-primary">agent/bot eksternal</strong> mengakses endpoint <code class="bg-surface px-1 text-primary">/api/posts</code> tanpa login GitHub OAuth.</li>
+                            <li>Gunakan header <code class="bg-surface px-1 text-primary">Authorization: Bearer &lt;API_KEY&gt;</code> untuk autentikasi.</li>
+                            <li>API key <strong class="text-red-400">hanya ditampilkan sekali</strong> saat digenerate — simpan di tempat aman.</li>
+                            <li>Kamu bisa <strong class="text-primary">menonaktifkan</strong> tanpa menghapus, lalu mengaktifkan kembali kapan saja.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Status & Controls -->
+                    <div id="apikey-status" class="font-mono text-xs text-muted">
+                        Memuat status API key...
+                    </div>
+
+                    <!-- Generated Key Display (hidden by default) -->
+                    <div id="apikey-generated" class="hidden bg-background border border-green-500/40 p-4 font-mono text-xs">
+                        <p class="text-green-400 font-bold mb-2">[ API KEY BARU — SALIN SEKARANG! ]</p>
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="text"
+                                id="apikey-full-value"
+                                readonly
+                                class="flex-1 bg-surface border border-muted px-3 py-2 text-primary font-mono text-xs select-all"
+                            />
+                            <button
+                                type="button"
+                                id="btn-copy-apikey"
+                                class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-3 py-2 cursor-[crosshair] whitespace-nowrap"
+                            >
+                                [ COPY ]
+                            </button>
+                        </div>
+                        <p class="text-red-400 mt-2">⚠ Key ini TIDAK akan ditampilkan lagi. Pastikan sudah disalin.</p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-wrap gap-3" id="apikey-actions">
+                        <button
+                            type="button"
+                            id="btn-generate-apikey"
+                            class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-4 py-2 cursor-[crosshair]"
+                        >
+                            [ 🔄 GENERATE API KEY ]
+                        </button>
+                        <button
+                            type="button"
+                            id="btn-toggle-apikey"
+                            class="hidden font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-4 py-2 cursor-[crosshair]"
+                        >
+                            [ TOGGLE ]
+                        </button>
+                        <button
+                            type="button"
+                            id="btn-delete-apikey"
+                            class="hidden font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-4 py-2 cursor-[crosshair]"
+                        >
+                            [ 🗑 HAPUS API KEY ]
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -273,6 +343,168 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                     btnUploadFavicon.disabled = false;
                 }
             });
+
+            // ========== API KEY MANAGEMENT ==========
+            const apikeyStatus = document.getElementById('apikey-status');
+            const apikeyGenerated = document.getElementById('apikey-generated');
+            const apikeyFullValue = document.getElementById('apikey-full-value');
+            const btnGenerate = document.getElementById('btn-generate-apikey');
+            const btnToggle = document.getElementById('btn-toggle-apikey');
+            const btnDelete = document.getElementById('btn-delete-apikey');
+            const btnCopy = document.getElementById('btn-copy-apikey');
+
+            let currentEnabled = false;
+
+            async function loadApiKeyStatus() {
+                try {
+                    const res = await fetch('/api/settings/apikey');
+                    const data = await res.json();
+
+                    if (!data.exists) {
+                        apikeyStatus.innerHTML = '<span class="text-muted">Belum ada API key. Generate untuk mulai menggunakan integrasi agent.</span>';
+                        btnGenerate.innerText = '[ 🔄 GENERATE API KEY ]';
+                        btnToggle.classList.add('hidden');
+                        btnDelete.classList.add('hidden');
+                    } else if (data.isEnvBased) {
+                        apikeyStatus.innerHTML = `
+                            <div class="bg-background border border-muted p-3 space-y-1">
+                                <p><span class="text-primary font-bold">Status:</span> <span class="text-green-400">● AKTIF (via ENV)</span></p>
+                                <p><span class="text-primary font-bold">Key:</span> <code class="bg-surface px-1 text-accent">${data.maskedKey}</code></p>
+                                <p class="text-muted">Dikelola via environment variable CMS_API_KEY — tidak bisa diubah dari UI.</p>
+                            </div>
+                        `;
+                        btnGenerate.classList.add('hidden');
+                        btnToggle.classList.add('hidden');
+                        btnDelete.classList.add('hidden');
+                    } else {
+                        currentEnabled = data.enabled;
+                        const statusColor = data.enabled ? 'text-green-400' : 'text-red-400';
+                        const statusText = data.enabled ? '● AKTIF' : '○ NONAKTIF';
+                        apikeyStatus.innerHTML = `
+                            <div class="bg-background border border-muted p-3 space-y-1">
+                                <p><span class="text-primary font-bold">Status:</span> <span class="${statusColor}">${statusText}</span></p>
+                                <p><span class="text-primary font-bold">Key:</span> <code class="bg-surface px-1 text-accent">${data.maskedKey}</code></p>
+                                <p><span class="text-primary font-bold">Dibuat:</span> <span class="text-accent">${new Date(data.createdAt).toLocaleString('id-ID')}</span></p>
+                            </div>
+                        `;
+                        btnGenerate.innerText = '[ 🔄 REGENERATE KEY ]';
+                        btnToggle.classList.remove('hidden');
+                        btnToggle.innerText = data.enabled ? '[ ⏸ NONAKTIFKAN ]' : '[ ▶ AKTIFKAN ]';
+                        btnDelete.classList.remove('hidden');
+                    }
+                } catch (err) {
+                    apikeyStatus.innerHTML = '<span class="text-red-400">Gagal memuat status API key.</span>';
+                }
+            }
+
+            // Generate / Regenerate
+            btnGenerate?.addEventListener('click', async () => {
+                const confirmMsg = btnGenerate.innerText.includes('REGENERATE')
+                    ? 'Key lama akan diganti dan tidak bisa dipakai lagi. Lanjutkan?'
+                    : 'Generate API key baru?';
+
+                if (!confirm(confirmMsg)) return;
+
+                btnGenerate.innerText = '[ GENERATING... ]';
+                btnGenerate.disabled = true;
+
+                try {
+                    const res = await fetch('/api/settings/apikey', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'generate' }),
+                    });
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        // Tampilkan full key
+                        apikeyFullValue.value = data.key;
+                        apikeyGenerated.classList.remove('hidden');
+                        showAlert('API key berhasil digenerate! Salin dan simpan key di bawah.');
+                        await loadApiKeyStatus();
+                    } else {
+                        showAlert(data.error || 'Gagal generate API key.', true);
+                    }
+                } catch (err) {
+                    showAlert('Terjadi kesalahan koneksi.', true);
+                } finally {
+                    btnGenerate.disabled = false;
+                }
+            });
+
+            // Toggle
+            btnToggle?.addEventListener('click', async () => {
+                const newState = !currentEnabled;
+                const label = newState ? 'mengaktifkan' : 'menonaktifkan';
+
+                btnToggle.innerText = '[ PROCESSING... ]';
+                btnToggle.disabled = true;
+
+                try {
+                    const res = await fetch('/api/settings/apikey', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'toggle', enabled: newState }),
+                    });
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        showAlert(`API key berhasil di${label}!`);
+                        await loadApiKeyStatus();
+                    } else {
+                        showAlert(data.error || `Gagal ${label} API key.`, true);
+                    }
+                } catch (err) {
+                    showAlert('Terjadi kesalahan koneksi.', true);
+                } finally {
+                    btnToggle.disabled = false;
+                }
+            });
+
+            // Delete
+            btnDelete?.addEventListener('click', async () => {
+                if (!confirm('Hapus API key? Agent yang menggunakan key ini tidak akan bisa mengakses API lagi.')) return;
+
+                btnDelete.innerText = '[ DELETING... ]';
+                btnDelete.disabled = true;
+
+                try {
+                    const res = await fetch('/api/settings/apikey', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'delete' }),
+                    });
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        apikeyGenerated.classList.add('hidden');
+                        showAlert('API key berhasil dihapus.');
+                        await loadApiKeyStatus();
+                    } else {
+                        showAlert(data.error || 'Gagal menghapus API key.', true);
+                    }
+                } catch (err) {
+                    showAlert('Terjadi kesalahan koneksi.', true);
+                } finally {
+                    btnDelete.disabled = false;
+                }
+            });
+
+            // Copy
+            btnCopy?.addEventListener('click', () => {
+                apikeyFullValue.select();
+                navigator.clipboard.writeText(apikeyFullValue.value).then(() => {
+                    btnCopy.innerText = '[ ✓ COPIED ]';
+                    setTimeout(() => { btnCopy.innerText = '[ COPY ]'; }, 2000);
+                }).catch(() => {
+                    document.execCommand('copy');
+                    btnCopy.innerText = '[ ✓ COPIED ]';
+                    setTimeout(() => { btnCopy.innerText = '[ COPY ]'; }, 2000);
+                });
+            });
+
+            // Load status on page load
+            loadApiKeyStatus();
         });
     </script>
 </body>
