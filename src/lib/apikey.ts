@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { isSupabaseConfigured, getSupabaseClient } from './db';
 
 export interface ApiKeyConfig {
   enabled: boolean;
@@ -20,22 +21,6 @@ function getLocalSettingsPath(): string {
 
 function isProductionEnv(): boolean {
   return process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
-}
-
-/**
- * Cek apakah Supabase terkonfigurasi (lazy, baca ulang tiap panggilan).
- */
-function getSupabase() {
-  const url = process.env.SUPABASE_URL || process.env.PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '';
-  if (!url || !key) return null;
-
-  try {
-    const { createClient } = require('@supabase/supabase-js');
-    return createClient(url, key);
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -71,19 +56,21 @@ function writeLocalSettings(settings: Record<string, any>): void {
  */
 export async function getApiKeyConfig(): Promise<ApiKeyConfig | null> {
   // 1. Coba Supabase
-  const supabase = getSupabase();
-  if (supabase) {
-    const { data, error } = await supabase
-      .from('site_settings')
-      .select('*')
-      .eq('key', SETTINGS_KEY)
-      .maybeSingle();
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('*')
+        .eq('key', SETTINGS_KEY)
+        .maybeSingle();
 
-    if (data && !error) {
-      try {
-        return JSON.parse(data.value);
-      } catch {
-        return null;
+      if (data && !error) {
+        try {
+          return JSON.parse(data.value);
+        } catch {
+          return null;
+        }
       }
     }
   }
@@ -117,21 +104,23 @@ export async function getApiKeyConfig(): Promise<ApiKeyConfig | null> {
  */
 export async function saveApiKeyConfig(config: ApiKeyConfig): Promise<{ success: boolean; message: string }> {
   // 1. Coba Supabase
-  const supabase = getSupabase();
-  if (supabase) {
-    const { error } = await supabase
-      .from('site_settings')
-      .upsert({
-        key: SETTINGS_KEY,
-        value: JSON.stringify(config),
-        updated_at: new Date().toISOString(),
-      });
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({
+          key: SETTINGS_KEY,
+          value: JSON.stringify(config),
+          updated_at: new Date().toISOString(),
+        });
 
-    if (!error) {
-      return { success: true, message: 'Konfigurasi API key berhasil disimpan ke database.' };
+      if (!error) {
+        return { success: true, message: 'Konfigurasi API key berhasil disimpan ke database.' };
+      }
+      console.error('Supabase save error:', error.message);
+      // Jangan return error, fallback ke lokal
     }
-    console.error('Supabase save error:', error.message);
-    // Jangan return error, fallback ke lokal
   }
 
   // 2. Fallback: file lokal (development)
@@ -146,7 +135,7 @@ export async function saveApiKeyConfig(config: ApiKeyConfig): Promise<{ success:
     }
   }
 
-  return { success: false, message: 'Tidak ada storage yang tersedia (Supabase atau file lokal).' };
+  return { success: false, message: 'Supabase tidak terkonfigurasi dan file lokal tidak tersedia di production.' };
 }
 
 /**
@@ -184,17 +173,19 @@ export async function toggleApiKey(enabled: boolean): Promise<{ success: boolean
  */
 export async function deleteApiKey(): Promise<{ success: boolean; message: string }> {
   // 1. Coba Supabase
-  const supabase = getSupabase();
-  if (supabase) {
-    const { error } = await supabase
-      .from('site_settings')
-      .delete()
-      .eq('key', SETTINGS_KEY);
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { error } = await supabase
+        .from('site_settings')
+        .delete()
+        .eq('key', SETTINGS_KEY);
 
-    if (!error) {
-      return { success: true, message: 'API key berhasil dihapus dari database.' };
+      if (!error) {
+        return { success: true, message: 'API key berhasil dihapus dari database.' };
+      }
+      console.error('Supabase delete error:', error.message);
     }
-    console.error('Supabase delete error:', error.message);
   }
 
   // 2. Fallback: file lokal
