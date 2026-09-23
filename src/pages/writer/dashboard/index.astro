@@ -106,10 +106,17 @@ try {
             color: var(--color-text);
             font-family: "JetBrains Mono", monospace;
         }
+
+        /* Theme Selector Active State */
+        .theme-btn.active {
+            color: var(--color-primary);
+            font-weight: 700;
+            text-decoration: underline;
+        }
     </style>
 </head>
-<body class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-10">
-    <div class="w-full max-w-5xl flex flex-col gap-6">
+<body class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-8 lg:px-12">
+    <div class="w-full max-w-7xl flex flex-col gap-6">
 
         <!-- Top Nav Bar -->
         <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm border-b border-muted pb-4">
@@ -121,6 +128,16 @@ try {
             </div>
 
             <div class="flex items-center gap-4 text-xs">
+                <!-- Theme Selector -->
+                <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
+                    <span class="text-muted mr-1 hidden sm:inline">&gt; mode:</span>
+                    <button type="button" data-theme-btn="system" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="System theme">sys</button>
+                    <span class="text-muted">|</span>
+                    <button type="button" data-theme-btn="dark" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="Dark theme">dark</button>
+                    <span class="text-muted">|</span>
+                    <button type="button" data-theme-btn="light" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="Light theme">light</button>
+                </div>
+
                 <div class="flex items-center gap-2 text-accent border border-muted px-3 py-1">
                     {session.avatarUrl && <img src={session.avatarUrl} alt="User" class="w-4 h-4 rounded-full" />}
                     <span>user: <strong class="text-primary">{session.user}</strong></span>
@@ -273,6 +290,64 @@ try {
                 });
             });
         });
+    </script>
+
+    <!-- Runtime Theme Interactivity Script -->
+    <script is:inline>
+        (function () {
+            function updateThemeUI(theme) {
+                var buttons = document.querySelectorAll('[data-theme-btn]');
+                buttons.forEach(function (btn) {
+                    var btnTheme = btn.getAttribute('data-theme-btn');
+                    if (btnTheme === theme) {
+                        btn.classList.add('active');
+                        btn.setAttribute('aria-pressed', 'true');
+                    } else {
+                        btn.classList.remove('active');
+                        btn.setAttribute('aria-pressed', 'false');
+                    }
+                });
+            }
+
+            function applyTheme(theme) {
+                localStorage.setItem('theme', theme);
+                var isDark =
+                    theme === 'dark' ||
+                    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+                updateThemeUI(theme);
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var storedTheme = localStorage.getItem('theme') || 'system';
+                updateThemeUI(storedTheme);
+
+                var buttons = document.querySelectorAll('[data-theme-btn]');
+                buttons.forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var val = btn.getAttribute('data-theme-btn');
+                        if (val) {
+                            applyTheme(val);
+                        }
+                    });
+                });
+
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+                    var currentStored = localStorage.getItem('theme') || 'system';
+                    if (currentStored === 'system') {
+                        if (e.matches) {
+                            document.documentElement.classList.add('dark');
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                        }
+                    }
+                });
+            });
+        })();
     </script>
 </body>
 </html>
