@@ -19,6 +19,9 @@ export default defineConfig({
   output: 'server',
   adapter: vercel(),
   image: { service: passthroughImageService() },
+  security: {
+    checkOrigin: false, // Dihandle manual di middleware (agar API key request tidak kena CSRF block)
+  },
   vite: {
     plugins: [tailwindcss()],
     server: {
