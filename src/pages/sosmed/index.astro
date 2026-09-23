@@ -56,7 +56,7 @@ const socials = [
     backHref="/"
     backLabel="cd ~/"
 >
-    <header class="border-b border-muted pb-4">
+    <header class="pb-2">
         <p class="font-mono text-sm text-accent">
             {profileData.terminalPrompt || "user@tux"}:~$ <span class="text-text">ls -la sosmed/</span>
         </p>
@@ -74,11 +74,8 @@ const socials = [
                             ? undefined
                             : "noopener noreferrer"
                     }
-                    class="terminal-hover group grid grid-cols-1 md:grid-cols-[40px_140px_1fr_auto] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
+                    class="terminal-hover group grid grid-cols-1 md:grid-cols-[140px_1fr_auto] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
                 >
-                    <div class="font-mono text-sm text-accent self-center">
-                        {String(i + 1).padStart(2, "0")}.
-                    </div>
                     <div class="font-mono text-sm font-bold text-muted self-center tracking-wider uppercase">
                         [{s.label}]
                     </div>

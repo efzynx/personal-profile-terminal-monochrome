@@ -21,11 +21,11 @@ const categories = Array.from(new Set(posts.map(p => p.frontmatter.category || '
     backLabel="cd ~/"
 >
     <!-- Header -->
-    <header class="border-b border-muted pb-4">
-        <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary">
-            total {posts.length} posts
+    <header class="pb-3">
+        <h1 class="font-mono text-lg md:text-xl font-bold text-primary">
+            ~/blog <span class="text-accent font-normal text-sm">({posts.length})</span>
         </h1>
-        <p class="font-mono text-xs text-accent mt-2">
+        <p class="font-mono text-xs text-muted mt-1">
             drwxr-xr-x {username} users 4096 . ~/blog
         </p>
     </header>

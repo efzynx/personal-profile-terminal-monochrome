@@ -85,13 +85,13 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
         }
 
         html.dark {
-            --color-background: #000000;
-            --color-surface: #0a0a0a;
-            --color-border: #444444;
-            --color-text: #e0e0e0;
-            --color-muted: #666666;
-            --color-accent: #888888;
-            --color-primary: #ffffff;
+            --color-background: #0a0a0a;
+            --color-surface: #141414;
+            --color-border: #2a2a2a;
+            --color-text: #d4d4d4;
+            --color-muted: #5a5a5a;
+            --color-accent: #8a8a8a;
+            --color-primary: #f0f0f0;
         }
 
         body {
@@ -150,19 +150,19 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                 href="/writer/dashboard"
                 class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
             >
-                [ 📝 Posts CMS ]
+                [ <span class="material-symbols-outlined text-[12px] align-middle">article</span> Posts CMS ]
             </a>
             <a
                 href="/writer/dashboard/profile"
                 class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
             >
-                [ 👤 Profile Settings ]
+                [ <span class="material-symbols-outlined text-[12px] align-middle">person</span> Profile Settings ]
             </a>
             <a
                 href="/writer/dashboard/settings"
                 class="px-4 py-2 text-primary font-bold bg-surface border border-muted no-underline cursor-[crosshair]"
             >
-                [ ⚙️ Site Settings ]
+                [ <span class="material-symbols-outlined text-[12px] align-middle">settings</span> Site Settings ]
             </a>
         </div>
 
@@ -208,7 +208,7 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                     <div class="flex flex-col gap-4">
                         <div class="bg-background border border-muted p-4 font-mono text-xs space-y-2">
                             <p class="text-primary font-bold border-b border-muted pb-1">
-                                💡 Petunjuk Format & Rekomendasi Optimal:
+                                Petunjuk Format & Rekomendasi Optimal:
                             </p>
                             <ul class="list-disc list-inside text-accent space-y-1.5 leading-relaxed pl-1">
                                 <li>
@@ -236,7 +236,7 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                 <div class="flex flex-col gap-4">
                     <div class="bg-background border border-muted p-4 font-mono text-xs space-y-2">
                         <p class="text-primary font-bold border-b border-muted pb-1">
-                            🔑 Tentang API Key
+                            Tentang API Key
                         </p>
                         <ul class="list-disc list-inside text-accent space-y-1.5 leading-relaxed pl-1">
                             <li>API key memungkinkan <strong class="text-primary">agent/bot eksternal</strong> mengakses endpoint <code class="bg-surface px-1 text-primary">/api/posts</code> tanpa login GitHub OAuth.</li>
@@ -269,7 +269,7 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                                 [ COPY ]
                             </button>
                         </div>
-                        <p class="text-red-400 mt-2">⚠ Key ini TIDAK akan ditampilkan lagi. Pastikan sudah disalin.</p>
+                        <p class="text-red-400 mt-2">Key ini TIDAK akan ditampilkan lagi. Pastikan sudah disalin.</p>
                     </div>
 
                     <!-- Action Buttons -->
@@ -279,7 +279,7 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                             id="btn-generate-apikey"
                             class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-4 py-2 cursor-[crosshair]"
                         >
-                            [ 🔄 GENERATE API KEY ]
+                            [ GENERATE API KEY ]
                         </button>
                         <button
                             type="button"
@@ -293,7 +293,7 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                             id="btn-delete-apikey"
                             class="hidden font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-4 py-2 cursor-[crosshair]"
                         >
-                            [ 🗑 HAPUS API KEY ]
+                            [ HAPUS API KEY ]
                         </button>
                     </div>
                 </div>
@@ -379,7 +379,7 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
 
                     if (!data.exists) {
                         apikeyStatus.innerHTML = '<span class="text-muted">Belum ada API key. Generate untuk mulai menggunakan integrasi agent.</span>';
-                        btnGenerate.innerText = '[ 🔄 GENERATE API KEY ]';
+                        btnGenerate.innerText = '[ GENERATE API KEY ]';
                         btnToggle.classList.add('hidden');
                         btnDelete.classList.add('hidden');
                     } else if (data.isEnvBased) {
@@ -404,9 +404,9 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
                                 <p><span class="text-primary font-bold">Dibuat:</span> <span class="text-accent">${new Date(data.createdAt).toLocaleString('id-ID')}</span></p>
                             </div>
                         `;
-                        btnGenerate.innerText = '[ 🔄 REGENERATE KEY ]';
+                        btnGenerate.innerText = '[ REGENERATE KEY ]';
                         btnToggle.classList.remove('hidden');
-                        btnToggle.innerText = data.enabled ? '[ ⏸ NONAKTIFKAN ]' : '[ ▶ AKTIFKAN ]';
+                        btnToggle.innerText = data.enabled ? '[ NONAKTIFKAN ]' : '[ AKTIFKAN ]';
                         btnDelete.classList.remove('hidden');
                     }
                 } catch (err) {
@@ -511,11 +511,11 @@ const cloudinaryStatusParam = Astro.url.searchParams.get('cloudinary');
             btnCopy?.addEventListener('click', () => {
                 apikeyFullValue.select();
                 navigator.clipboard.writeText(apikeyFullValue.value).then(() => {
-                    btnCopy.innerText = '[ ✓ COPIED ]';
+                    btnCopy.innerText = '[ OK — COPIED ]';
                     setTimeout(() => { btnCopy.innerText = '[ COPY ]'; }, 2000);
                 }).catch(() => {
                     document.execCommand('copy');
-                    btnCopy.innerText = '[ ✓ COPIED ]';
+                    btnCopy.innerText = '[ OK — COPIED ]';
                     setTimeout(() => { btnCopy.innerText = '[ COPY ]'; }, 2000);
                 });
             });

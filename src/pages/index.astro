@@ -14,7 +14,7 @@ const profileData = await getProfileData();
 >
     <div class="flex items-center justify-center min-h-[80vh]">
         <div
-            class="w-full max-w-md border border-muted p-8 bg-surface flex flex-col gap-8"
+            class="w-full max-w-md border border-muted p-6 md:p-8 flex flex-col gap-6"
         >
             <!-- Header / Identity -->
             <div
@@ -58,11 +58,11 @@ const profileData = await getProfileData();
             <hr class="border-muted" />
 
             <!-- Navigation Menu -->
-            <nav class="flex flex-col gap-1" aria-label="Main navigation">
+            <nav class="flex flex-col gap-0.5" aria-label="Main navigation">
                 <a
                     id="nav-portfolio"
                     href="/portfolio"
-                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                    class="group flex items-center h-10 px-3 hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
                 >
                     <span
                         class="font-mono text-accent mr-3 group-hover:text-primary"
@@ -70,13 +70,13 @@ const profileData = await getProfileData();
                     >
                     <span
                         class="font-mono text-sm text-text group-hover:text-primary"
-                        >[1] Portfolio</span
+                        >portfolio/</span
                     >
                 </a>
                 <a
                     id="nav-blog"
                     href="/blog"
-                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                    class="group flex items-center h-10 px-3 hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
                 >
                     <span
                         class="font-mono text-accent mr-3 group-hover:text-primary"
@@ -84,13 +84,13 @@ const profileData = await getProfileData();
                     >
                     <span
                         class="font-mono text-sm text-text group-hover:text-primary"
-                        >[2] Blog</span
+                        >blog/</span
                     >
                 </a>
                 <a
                     id="nav-project"
                     href="/project"
-                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                    class="group flex items-center h-10 px-3 hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
                 >
                     <span
                         class="font-mono text-accent mr-3 group-hover:text-primary"
@@ -98,13 +98,13 @@ const profileData = await getProfileData();
                     >
                     <span
                         class="font-mono text-sm text-text group-hover:text-primary"
-                        >[3] Project</span
+                        >project/</span
                     >
                 </a>
                 <a
                     id="nav-sosmed"
                     href="/sosmed"
-                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                    class="group flex items-center h-10 px-3 hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
                 >
                     <span
                         class="font-mono text-accent mr-3 group-hover:text-primary"
@@ -112,31 +112,30 @@ const profileData = await getProfileData();
                     >
                     <span
                         class="font-mono text-sm text-text group-hover:text-primary"
-                        >[4] Sosial Media</span
+                        >sosmed/</span
                     >
                 </a>
                 <a
                     id="nav-writer"
                     href="/writer"
-                    class="group flex items-center h-11 px-3 border border-transparent hover:border-muted hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
+                    class="group flex items-center h-10 px-3 hover:bg-surface transition-colors duration-0 cursor-[crosshair]"
                 >
                     <span
-                        class="font-mono text-accent mr-3 group-hover:text-primary"
+                        class="font-mono text-muted mr-3 group-hover:text-accent"
                         >&gt;</span
                     >
                     <span
-                        class="font-mono text-sm text-text group-hover:text-primary"
-                        >[5] Settings (Admin)</span
+                        class="font-mono text-xs text-muted group-hover:text-accent"
+                        >settings/</span
                     >
                 </a>
             </nav>
 
             <!-- Status Bar -->
             <div
-                class="border-t border-muted pt-4 text-xs font-mono text-muted flex justify-between"
+                class="border-t border-muted pt-3 text-xs font-mono text-muted"
             >
-                <span>STATUS: ONLINE</span>
-                <span>UPTIME: 99.9%</span>
+                <span>© {new Date().getFullYear()} · built with astro</span>
             </div>
         </div>
     </div>
