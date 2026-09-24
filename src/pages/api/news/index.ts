@@ -53,6 +53,20 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       );
     }
 
+    // Format publishedAt: simpan timestamp ISO penuh untuk membedakan sesi rilis berita
+    let finalPublishedAt = publishedAt;
+    if (!finalPublishedAt) {
+      finalPublishedAt = new Date().toISOString();
+    } else if (typeof finalPublishedAt === 'string') {
+      const trimmed = finalPublishedAt.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        const now = new Date();
+        finalPublishedAt = `${trimmed}${now.toISOString().slice(10)}`;
+      } else {
+        finalPublishedAt = trimmed;
+      }
+    }
+
     const result = await saveNewsItem({
       id,
       title: cleanTitle,
@@ -63,7 +77,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       tags: tags || [],
       coverImage: coverImage || undefined,
       draft: draft !== undefined ? Boolean(draft) : false,
-      publishedAt: publishedAt || new Date().toISOString().slice(0, 10),
+      publishedAt: finalPublishedAt,
     });
 
     if (!result.success) {

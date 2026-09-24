@@ -3,6 +3,7 @@ import '../../../styles/global.css';
 import { getSession } from '../../../lib/auth';
 import { listNews } from '../../../lib/news';
 import { getProfileData } from '../../../lib/cms';
+import { formatDate } from '../../../lib/utils';
 import TerminalModal from '../../../components/TerminalModal.astro';
 
 const session = getSession(Astro.cookies);
@@ -186,6 +187,7 @@ try {
             </div>
 
             <input type="hidden" id="news-id" value="" />
+            <input type="hidden" id="news-published-at" value="" />
 
             <div class="flex flex-col gap-1">
                 <label class="font-mono text-xs text-accent">Title *</label>
@@ -258,7 +260,7 @@ try {
                         <div class="p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-background transition-colors duration-0">
                             <div class="flex flex-col gap-1.5 max-w-2xl">
                                 <div class="flex flex-wrap items-center gap-3 font-mono text-xs">
-                                    <span class="text-accent">{item.publishedAt}</span>
+                                    <span class="text-accent">{formatDate(item.publishedAt)}</span>
                                     <span class="text-muted">|</span>
                                     <span class="text-muted">{item.sourceName}</span>
                                     {item.draft ? (
@@ -298,6 +300,7 @@ try {
                                     data-edit-tags={(item.tags || []).join(', ')}
                                     data-edit-cover={item.coverImage || ''}
                                     data-edit-draft={item.draft ? 'true' : 'false'}
+                                    data-edit-published-at={item.publishedAt}
                                     class="text-primary hover:bg-surface border border-primary px-3 py-1.5 font-bold transition-colors cursor-[crosshair]"
                                 >
                                     [ Edit ]
@@ -365,6 +368,7 @@ try {
                 btnAdd.classList.add('hidden');
                 formHeading.textContent = 'Add News Item';
                 document.getElementById('news-id').value = '';
+                document.getElementById('news-published-at').value = '';
                 document.getElementById('news-title').value = '';
                 document.getElementById('news-summary').value = '';
                 document.getElementById('news-content').value = '';
@@ -414,6 +418,9 @@ try {
                 formStatus.textContent = '';
 
                 try {
+                    var existingPublishedAt = document.getElementById('news-published-at').value;
+                    var publishedAt = existingPublishedAt || new Date().toISOString();
+
                     var payload = {
                         title: title,
                         summary: summary,
@@ -423,7 +430,7 @@ try {
                         tags: tags,
                         coverImage: coverImage || undefined,
                         draft: draft,
-                        publishedAt: new Date().toISOString().slice(0, 10),
+                        publishedAt: publishedAt,
                     };
                     if (id) payload.id = id;
 
@@ -501,6 +508,7 @@ try {
                     formStatus.textContent = '';
 
                     document.getElementById('news-id').value = btn.getAttribute('data-edit-id') || '';
+                    document.getElementById('news-published-at').value = btn.getAttribute('data-edit-published-at') || '';
                     document.getElementById('news-title').value = btn.getAttribute('data-edit-title') || '';
                     document.getElementById('news-summary').value = btn.getAttribute('data-edit-summary') || '';
                     document.getElementById('news-content').value = btn.getAttribute('data-edit-content') || '';
