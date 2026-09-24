@@ -1,0 +1,66 @@
+import type { APIRoute } from 'astro';
+import { getSession } from '../../../lib/auth';
+import { validateApiKey } from '../../../lib/apikey';
+import { listNews, saveNewsItem } from '../../../lib/news';
+
+export const GET: APIRoute = async ({ cookies, request }) => {
+  const session = getSession(cookies);
+  const apiKeyValid = await validateApiKey(request.headers.get('Authorization'));
+
+  if (!session && !apiKeyValid) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+
+  try {
+    const news = await listNews();
+    return new Response(JSON.stringify({ news }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message || 'Failed to list news' }), { status: 500 });
+  }
+};
+
+export const POST: APIRoute = async ({ cookies, request }) => {
+  const session = getSession(cookies);
+  const apiKeyValid = await validateApiKey(request.headers.get('Authorization'));
+
+  if (!session && !apiKeyValid) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { id, title, summary, sourceUrl, sourceName, tags, coverImage, publishedAt } = body;
+
+    if (!title || !summary || !sourceUrl || !sourceName) {
+      return new Response(
+        JSON.stringify({ error: 'title, summary, sourceUrl, dan sourceName wajib diisi' }),
+        { status: 400 },
+      );
+    }
+
+    const result = await saveNewsItem({
+      id,
+      title,
+      summary,
+      sourceUrl,
+      sourceName,
+      tags: tags || [],
+      coverImage: coverImage || undefined,
+      publishedAt: publishedAt || new Date().toISOString().slice(0, 10),
+    });
+
+    if (!result.success) {
+      return new Response(JSON.stringify({ error: result.message }), { status: 500 });
+    }
+
+    return new Response(JSON.stringify({ success: true, message: result.message, id: result.id }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message || 'Gagal menyimpan news' }), { status: 500 });
+  }
+};
