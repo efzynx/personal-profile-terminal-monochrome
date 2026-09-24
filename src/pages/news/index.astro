@@ -10,7 +10,27 @@ const news = await listPublishedNews();
 
 const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('@')[0] : "user";
 
-const allTags = Array.from(new Set(news.flatMap(n => n.tags || [])));
+// Ekstraksi tanggal unik beserta hitungan berita
+const dateCountMap = new Map<string, number>();
+news.forEach((item) => {
+    const d = formatDate(item.publishedAt);
+    if (d) {
+        dateCountMap.set(d, (dateCountMap.get(d) || 0) + 1);
+    }
+});
+const availableDates = Array.from(dateCountMap.keys()).sort((a, b) => b.localeCompare(a));
+
+// Ekstraksi tag unik beserta hitungan berita
+const tagCountMap = new Map<string, number>();
+news.forEach((item) => {
+    (item.tags || []).forEach((t: string) => {
+        const lower = t.trim().toLowerCase();
+        if (lower) {
+            tagCountMap.set(lower, (tagCountMap.get(lower) || 0) + 1);
+        }
+    });
+});
+const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeCompare(b));
 ---
 
 <BaseLayout
@@ -30,28 +50,58 @@ const allTags = Array.from(new Set(news.flatMap(n => n.tags || [])));
         </p>
     </header>
 
-    <!-- Tag Filter -->
-    {allTags.length > 0 && (
-        <div class="flex flex-wrap items-center gap-2 font-mono text-xs py-2 border-b border-muted">
-            <span class="text-accent font-bold">[FILTER]:</span>
+    <!-- Modular Dropdown Filter Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs py-2.5 px-3 bg-surface border border-muted">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-primary font-bold flex items-center gap-1.5 select-none">
+                <span class="inline-block w-2 h-2 bg-primary"></span>
+                FILTER:
+            </span>
+
+            <!-- Date Selector Dropdown -->
+            <div class="flex items-center gap-1.5">
+                <label for="filter-date" class="text-accent select-none">&gt; date:</label>
+                <select
+                    id="filter-date"
+                    class="bg-background border border-muted hover:border-accent focus:border-primary focus:outline-none text-text text-xs px-2 py-1 font-mono cursor-[crosshair] transition-colors"
+                >
+                    <option value="all">Semua Tanggal ({news.length})</option>
+                    {availableDates.map((date) => (
+                        <option value={date}>{date} ({dateCountMap.get(date)})</option>
+                    ))}
+                </select>
+            </div>
+
+            <!-- Tag Selector Dropdown -->
+            <div class="flex items-center gap-1.5">
+                <label for="filter-tag" class="text-accent select-none">&gt; tag:</label>
+                <select
+                    id="filter-tag"
+                    class="bg-background border border-muted hover:border-accent focus:border-primary focus:outline-none text-text text-xs px-2 py-1 font-mono cursor-[crosshair] transition-colors"
+                >
+                    <option value="all">Semua Tag ({availableTags.length})</option>
+                    {availableTags.map((tag) => (
+                        <option value={tag}>#{tag} ({tagCountMap.get(tag)})</option>
+                    ))}
+                </select>
+            </div>
+
+            <!-- Reset Button -->
             <button
                 type="button"
-                class="filter-btn active-filter border border-primary bg-primary text-background px-2.5 py-1 cursor-[crosshair]"
-                data-tag="all"
+                id="btn-reset-filters"
+                class="hidden border border-muted hover:border-primary bg-background text-accent hover:text-primary px-2.5 py-1 text-xs font-mono cursor-[crosshair] transition-colors"
+                title="Reset semua filter"
             >
-                [ ALL ]
+                [ RESET ]
             </button>
-            {allTags.map((tag) => (
-                <button
-                    type="button"
-                    class="filter-btn border border-muted bg-surface text-accent hover:text-primary hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors"
-                    data-tag={tag.toLowerCase()}
-                >
-                    [{tag}]
-                </button>
-            ))}
         </div>
-    )}
+
+        <!-- Filter Count Badge -->
+        <div class="text-muted font-mono text-[11px] self-center">
+            <span id="filter-result-count" class="text-primary font-bold">{news.length}</span> / {news.length} items
+        </div>
+    </div>
 
     <!-- Table header (desktop only) -->
     <div
@@ -71,19 +121,21 @@ const allTags = Array.from(new Set(news.flatMap(n => n.tags || [])));
                 </div>
             ) : (
                 news.map((item) => {
-                    const tagsLower = (item.tags || []).map(t => t.toLowerCase()).join(' ');
+                    const dateFormatted = formatDate(item.publishedAt);
+                    const tagsLower = (item.tags || []).map(t => t.toLowerCase().trim()).filter(Boolean).join(' ');
                     const searchHaystack = `${item.title} ${item.summary} ${item.sourceName} ${tagsLower}`.toLowerCase();
 
                     return (
                         <a
                             id={`news-${item.id}`}
                             href={`/news/${item.id}`}
+                            data-date={dateFormatted}
                             data-tags={tagsLower}
                             data-search={searchHaystack}
                             class="news-row terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
                         >
                             <div class="font-mono text-xs text-accent self-start md:self-center">
-                                {formatDate(item.publishedAt)}
+                                {dateFormatted}
                             </div>
                             <div class="font-mono text-xs text-muted self-start md:self-center font-bold tracking-wider">
                                 [{item.sourceName}]
@@ -106,47 +158,69 @@ const allTags = Array.from(new Set(news.flatMap(n => n.tags || [])));
     </div>
 
     <div id="no-results" class="hidden py-12 flex justify-center border border-dashed border-muted">
-        <p class="font-mono text-xs text-accent">Tidak ada berita dengan tag tersebut.</p>
+        <p class="font-mono text-xs text-accent">Tidak ada berita yang cocok dengan kriteria filter.</p>
     </div>
 
     <!-- Client-Side Filter Script -->
     <script is:inline>
         document.addEventListener('DOMContentLoaded', () => {
             const newsRows = document.querySelectorAll('.news-row');
-            const filterBtns = document.querySelectorAll('.filter-btn');
+            const dateSelect = document.getElementById('filter-date');
+            const tagSelect = document.getElementById('filter-tag');
+            const btnReset = document.getElementById('btn-reset-filters');
+            const countEl = document.getElementById('filter-result-count');
             const noResults = document.getElementById('no-results');
 
-            let activeTag = 'all';
+            function applyFilters() {
+                const selectedDate = dateSelect ? dateSelect.value : 'all';
+                const selectedTag = tagSelect ? tagSelect.value : 'all';
 
-            function filterNews() {
                 let visibleCount = 0;
+
                 newsRows.forEach((row) => {
-                    const rowTags = row.getAttribute('data-tags') || '';
-                    const matches = activeTag === 'all' || rowTags.includes(activeTag);
-                    if (matches) {
+                    const rowDate = row.getAttribute('data-date') || '';
+                    const rowTags = (row.getAttribute('data-tags') || '').split(' ').filter(Boolean);
+
+                    const matchDate = selectedDate === 'all' || rowDate === selectedDate;
+                    const matchTag = selectedTag === 'all' || rowTags.includes(selectedTag);
+
+                    if (matchDate && matchTag) {
                         row.classList.remove('hidden');
                         visibleCount++;
                     } else {
                         row.classList.add('hidden');
                     }
                 });
+
+                if (countEl) {
+                    countEl.textContent = String(visibleCount);
+                }
+
                 if (noResults) {
                     noResults.classList.toggle('hidden', visibleCount > 0);
                 }
+
+                const isFiltered = selectedDate !== 'all' || selectedTag !== 'all';
+                if (btnReset) {
+                    btnReset.classList.toggle('hidden', !isFiltered);
+                }
             }
 
-            filterBtns.forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    filterBtns.forEach((b) => {
-                        b.classList.remove('active-filter', 'bg-primary', 'text-background');
-                        b.classList.add('bg-surface', 'text-accent');
-                    });
-                    btn.classList.add('active-filter', 'bg-primary', 'text-background');
-                    btn.classList.remove('bg-surface', 'text-accent');
-                    activeTag = btn.getAttribute('data-tag') || 'all';
-                    filterNews();
+            if (dateSelect) {
+                dateSelect.addEventListener('change', applyFilters);
+            }
+
+            if (tagSelect) {
+                tagSelect.addEventListener('change', applyFilters);
+            }
+
+            if (btnReset) {
+                btnReset.addEventListener('click', () => {
+                    if (dateSelect) dateSelect.value = 'all';
+                    if (tagSelect) tagSelect.value = 'all';
+                    applyFilters();
                 });
-            });
+            }
         });
     </script>
 </BaseLayout>
