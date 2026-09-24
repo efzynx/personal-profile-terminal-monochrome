@@ -136,7 +136,7 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
 
                 <a
                     href="/api/auth/logout"
-                    class="font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1 no-underline transition-colors cursor-[crosshair]"
+                    class="font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1 no-underline transition-colors duration-0 cursor-[crosshair]"
                 >
                     [ LOGOUT ]
                 </a>
@@ -150,6 +150,12 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
                 class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
             >
                 [ <span class="material-symbols-outlined text-[12px] align-middle">article</span> Posts CMS ]
+            </a>
+            <a
+                href="/writer/dashboard/news"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ <span class="material-symbols-outlined text-[12px] align-middle">newspaper</span> News ]
             </a>
             <a
                 href="/writer/dashboard/profile"
@@ -315,6 +321,17 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
             </div>
 
         </form>
+
+        <!-- Footer Nav -->
+        <div class="border-t border-muted pt-4 mt-4 flex items-center justify-between font-mono text-xs text-accent">
+            <a
+                href="/"
+                class="hover:text-primary transition-colors duration-0 cursor-[crosshair] no-underline"
+            >
+                &lt;-- cd ~/
+            </a>
+            <span class="text-muted">admin_panel</span>
+        </div>
 
     </div>
 

@@ -1,0 +1,596 @@
+---
+import { getSession } from '../../../lib/auth';
+import { listNews } from '../../../lib/news';
+import { getProfileData } from '../../../lib/cms';
+
+const session = getSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect('/writer');
+}
+
+const profile = await getProfileData(session.token);
+const activeFavicon = profile.faviconUrl || "/favicon.svg";
+const isSvgFavicon = activeFavicon.endsWith('.svg');
+const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
+
+let news: any[] = [];
+let fetchError = '';
+try {
+  news = await listNews();
+} catch (err: any) {
+  fetchError = err.message || 'Gagal memuat daftar news';
+}
+---
+
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>News Management — {profile.name}</title>
+    {isSvgFavicon ? (
+        <link rel="icon" type="image/svg+xml" href={activeFavicon} />
+    ) : (
+        <link rel="icon" href={activeFavicon} />
+    )}
+
+    <script is:inline>
+        (function () {
+            var storedTheme = localStorage.getItem('theme') || 'system';
+            var isDark =
+                storedTheme === 'dark' ||
+                (storedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
+        rel="stylesheet"
+    />
+
+    <script is:inline src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script is:inline id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary:    "var(--color-primary)",
+                        background: "var(--color-background)",
+                        surface:    "var(--color-surface)",
+                        border:     "var(--color-border)",
+                        text:       "var(--color-text)",
+                        muted:      "var(--color-muted)",
+                        accent:     "var(--color-accent)",
+                    },
+                    fontFamily: {
+                        mono: ["JetBrains Mono", "monospace"],
+                        sans: ["IBM Plex Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px",
+                    },
+                },
+            },
+        };
+    </script>
+    <style is:global>
+        :root {
+            --color-background: #ffffff;
+            --color-surface: #f4f4f5;
+            --color-border: #e5e5e5;
+            --color-text: #18181b;
+            --color-muted: #71717a;
+            --color-accent: #52525b;
+            --color-primary: #000000;
+        }
+
+        html.dark {
+            --color-background: #0a0a0a;
+            --color-surface: #141414;
+            --color-border: #2a2a2a;
+            --color-text: #d4d4d4;
+            --color-muted: #5a5a5a;
+            --color-accent: #8a8a8a;
+            --color-primary: #f0f0f0;
+        }
+
+        body {
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: "JetBrains Mono", monospace;
+        }
+
+        .theme-btn.active {
+            color: var(--color-primary);
+            font-weight: 700;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-8 lg:px-12">
+    <div class="w-full max-w-7xl flex flex-col gap-6">
+
+        <!-- Top Nav Bar -->
+        <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm border-b border-muted pb-4">
+            <div class="flex items-center gap-2 text-accent">
+                <span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+                <span>{promptPrefix}:~$</span>
+                <span class="text-primary font-bold">cd ~/writer/dashboard/news</span>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs">
+                <!-- Theme Selector -->
+                <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
+                    <span class="text-muted mr-1 hidden sm:inline">&gt; mode:</span>
+                    <button type="button" data-theme-btn="system" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="System theme">sys</button>
+                    <span class="text-muted">|</span>
+                    <button type="button" data-theme-btn="dark" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="Dark theme">dark</button>
+                    <span class="text-muted">|</span>
+                    <button type="button" data-theme-btn="light" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="Light theme">light</button>
+                </div>
+
+                <div class="flex items-center gap-2 text-accent border border-muted px-3 py-1">
+                    {session.avatarUrl && <img src={session.avatarUrl} alt="User" class="w-4 h-4 rounded-full" />}
+                    <span>user: <strong class="text-primary">{session.user}</strong></span>
+                </div>
+
+                <a
+                    href="/api/auth/logout"
+                    class="font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1 no-underline transition-colors duration-0 cursor-[crosshair]"
+                >
+                    [ LOGOUT ]
+                </a>
+            </div>
+        </nav>
+        <!-- Admin Sub-Menu Tabs -->
+        <div class="flex items-center gap-2 font-mono text-xs border-b border-muted pb-2">
+            <a
+                href="/writer/dashboard"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ <span class="material-symbols-outlined text-[12px] align-middle">article</span> Posts CMS ]
+            </a>
+            <a
+                href="/writer/dashboard/news"
+                class="px-4 py-2 text-primary font-bold bg-surface border border-muted no-underline cursor-[crosshair]"
+            >
+                [ <span class="material-symbols-outlined text-[12px] align-middle">newspaper</span> News ]
+            </a>
+            <a
+                href="/writer/dashboard/profile"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ <span class="material-symbols-outlined text-[12px] align-middle">person</span> Profile Settings ]
+            </a>
+            <a
+                href="/writer/dashboard/settings"
+                class="px-4 py-2 text-accent hover:text-primary border border-transparent hover:border-muted no-underline cursor-[crosshair]"
+            >
+                [ <span class="material-symbols-outlined text-[12px] align-middle">settings</span> Site Settings ]
+            </a>
+        </div>
+
+
+        <!-- Header Block -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
+            <div>
+                <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">News Management</h1>
+                <p class="font-mono text-xs text-muted mt-1">Total {news.length} berita terdaftar.</p>
+            </div>
+
+            <button
+                type="button"
+                id="btn-add-news"
+                class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2.5 transition-colors duration-0 cursor-[crosshair] flex items-center gap-2 shrink-0"
+            >
+                <span class="material-symbols-outlined text-base">add</span>
+                <span>[ ADD NEWS ]</span>
+            </button>
+        </header>
+
+        {fetchError && (
+            <div class="border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs">
+                [ERR] {fetchError}
+            </div>
+        )}
+
+        <!-- Add/Edit News Form (hidden by default) -->
+        <div id="news-form-container" class="hidden border border-muted bg-surface p-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <h2 id="form-heading" class="font-mono text-sm font-bold text-primary uppercase">Add News Item</h2>
+                <button type="button" id="btn-cancel-form" class="font-mono text-xs text-accent hover:text-primary cursor-[crosshair]">[ CANCEL ]</button>
+            </div>
+
+            <input type="hidden" id="news-id" value="" />
+
+            <div class="flex flex-col gap-1">
+                <label class="font-mono text-xs text-accent">Title *</label>
+                <input type="text" id="news-title" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Judul berita" />
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <div class="flex items-center justify-between">
+                    <label class="font-mono text-xs text-accent">Summary * <span class="text-muted">(maks. 200 karakter)</span></label>
+                    <span id="summary-counter" class="font-mono text-[10px] text-muted">0/200</span>
+                </div>
+                <textarea id="news-summary" rows="3" maxlength="200" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Ringkasan 1-2 kalimat"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="font-mono text-xs text-accent">Source URL *</label>
+                    <input type="url" id="news-source-url" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="https://..." />
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="font-mono text-xs text-accent">Source Name *</label>
+                    <input type="text" id="news-source-name" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Reuters, TechCrunch, etc." />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="font-mono text-xs text-accent">Tags (comma separated)</label>
+                    <input type="text" id="news-tags" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="AI, cloud, devops" />
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="font-mono text-xs text-accent">Cover Image URL (optional)</label>
+                    <input type="url" id="news-cover" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="https://..." />
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="font-mono text-xs text-accent">Content — Markdown *</label>
+                <textarea id="news-content" rows="10" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Konten lengkap dalam format Markdown."></textarea>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 font-mono text-xs text-accent cursor-[crosshair] select-none">
+                    <input type="checkbox" id="news-draft" class="bg-background border-muted text-primary focus:ring-0 cursor-[crosshair]" />
+                    Simpan sebagai draft (belum publish)
+                </label>
+            </div>
+
+            <div class="flex items-center gap-4 pt-2">
+                <button
+                    type="button"
+                    id="btn-save-news"
+                    class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2 transition-colors duration-0 cursor-[crosshair]"
+                >
+                    [ SAVE ]
+                </button>
+                <span id="form-status" class="font-mono text-xs text-accent"></span>
+            </div>
+        </div>
+
+        <!-- News List -->
+        <main class="flex flex-col gap-3 mt-2">
+            {news.length === 0 ? (
+                <div class="border border-dashed border-muted p-12 text-center text-muted font-mono text-sm">
+                    Belum ada news. Klik <strong>[ ADD NEWS ]</strong> untuk menambahkan berita.
+                </div>
+            ) : (
+                <div class="border border-muted divide-y divide-muted bg-surface">
+                    {news.map((item) => (
+                        <div class="p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-background transition-colors duration-0">
+                            <div class="flex flex-col gap-1.5 max-w-2xl">
+                                <div class="flex flex-wrap items-center gap-3 font-mono text-xs">
+                                    <span class="text-accent">{item.publishedAt}</span>
+                                    <span class="text-muted">|</span>
+                                    <span class="text-muted">{item.sourceName}</span>
+                                    {item.draft ? (
+                                        <span class="px-2 py-0.5 text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">DRAFT</span>
+                                    ) : (
+                                        <span class="px-2 py-0.5 text-[10px] bg-green-500/20 text-green-300 border border-green-500/40">PUBLISHED</span>
+                                    )}
+                                    {(item.tags || []).map((tag: string) => (
+                                        <span class="text-[10px] text-muted border border-muted px-1 py-0.5">#{tag}</span>
+                                    ))}
+                                </div>
+                                <h2 class="font-mono text-base md:text-lg font-bold text-text group-hover:text-primary transition-colors">
+                                    {item.title}
+                                </h2>
+                                <p class="font-sans text-xs text-muted line-clamp-2">
+                                    {item.summary}
+                                </p>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex items-center gap-2 shrink-0 font-mono text-xs">
+                                <a
+                                    href={`/news/${item.id}`}
+                                    target="_blank"
+                                    class="text-accent hover:text-primary border border-muted hover:border-accent px-3 py-1.5 no-underline transition-colors cursor-[crosshair]"
+                                >
+                                    [ View ]
+                                </a>
+                                <button
+                                    type="button"
+                                    data-edit-id={item.id}
+                                    data-edit-title={item.title}
+                                    data-edit-summary={item.summary}
+                                    data-edit-content={item.content || ''}
+                                    data-edit-source-url={item.sourceUrl}
+                                    data-edit-source-name={item.sourceName}
+                                    data-edit-tags={(item.tags || []).join(', ')}
+                                    data-edit-cover={item.coverImage || ''}
+                                    data-edit-draft={item.draft ? 'true' : 'false'}
+                                    class="text-primary hover:bg-surface border border-primary px-3 py-1.5 font-bold transition-colors cursor-[crosshair]"
+                                >
+                                    [ Edit ]
+                                </button>
+                                <a
+                                    href={item.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-accent hover:text-primary border border-muted hover:border-accent px-3 py-1.5 no-underline transition-colors cursor-[crosshair]"
+                                >
+                                    [ Source ]
+                                </a>
+                                <button
+                                    type="button"
+                                    data-delete-id={item.id}
+                                    class="btn-delete text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1.5 transition-colors cursor-[crosshair]"
+                                >
+                                    [ Delete ]
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </main>
+
+        <!-- Footer Nav -->
+        <div class="border-t border-muted pt-4 mt-4 flex items-center justify-between font-mono text-xs text-accent">
+            <a
+                href="/"
+                class="hover:text-primary transition-colors duration-0 cursor-[crosshair] no-underline"
+            >
+                &lt;-- cd ~/
+            </a>
+            <span class="text-muted">admin_panel</span>
+        </div>
+    </div>
+
+    <!-- Client-Side Scripts -->
+    <script is:inline>
+        document.addEventListener('DOMContentLoaded', function () {
+            var formContainer = document.getElementById('news-form-container');
+            var btnAdd = document.getElementById('btn-add-news');
+            var btnCancel = document.getElementById('btn-cancel-form');
+            var btnSave = document.getElementById('btn-save-news');
+            var formStatus = document.getElementById('form-status');
+            var summaryField = document.getElementById('news-summary');
+            var summaryCounter = document.getElementById('summary-counter');
+            var formHeading = document.getElementById('form-heading');
+
+            // Summary character counter
+            summaryField.addEventListener('input', function () {
+                var len = summaryField.value.length;
+                summaryCounter.textContent = len + '/200';
+                if (len > 180) {
+                    summaryCounter.className = 'font-mono text-[10px] text-red-400';
+                } else {
+                    summaryCounter.className = 'font-mono text-[10px] text-muted';
+                }
+            });
+
+            // Show form (Add mode)
+            btnAdd.addEventListener('click', function () {
+                formContainer.classList.remove('hidden');
+                btnAdd.classList.add('hidden');
+                formHeading.textContent = 'Add News Item';
+                document.getElementById('news-id').value = '';
+                document.getElementById('news-title').value = '';
+                document.getElementById('news-summary').value = '';
+                document.getElementById('news-content').value = '';
+                document.getElementById('news-source-url').value = '';
+                document.getElementById('news-source-name').value = '';
+                document.getElementById('news-tags').value = '';
+                document.getElementById('news-cover').value = '';
+                document.getElementById('news-draft').checked = false;
+                document.getElementById('summary-counter').textContent = '0/200';
+                formStatus.textContent = '';
+            });
+
+            // Hide form
+            btnCancel.addEventListener('click', function () {
+                formContainer.classList.add('hidden');
+                btnAdd.classList.remove('hidden');
+            });
+
+            // Save
+            btnSave.addEventListener('click', async function () {
+                var title = document.getElementById('news-title').value.trim();
+                var summary = document.getElementById('news-summary').value.trim();
+                var content = document.getElementById('news-content').value.trim();
+                var sourceUrl = document.getElementById('news-source-url').value.trim();
+                var sourceName = document.getElementById('news-source-name').value.trim();
+                var tagsRaw = document.getElementById('news-tags').value.trim();
+                var coverImage = document.getElementById('news-cover').value.trim();
+                var id = document.getElementById('news-id').value.trim();
+                var draft = document.getElementById('news-draft').checked;
+
+                if (!title || !summary || !content || !sourceUrl || !sourceName) {
+                    formStatus.textContent = '[ERR] Title, Summary, Content, Source URL, dan Source Name wajib diisi.';
+                    formStatus.className = 'font-mono text-xs text-red-400';
+                    return;
+                }
+
+                if (summary.length > 200) {
+                    formStatus.textContent = '[ERR] Summary maksimal 200 karakter.';
+                    formStatus.className = 'font-mono text-xs text-red-400';
+                    return;
+                }
+
+                var tags = tagsRaw ? tagsRaw.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
+
+                btnSave.disabled = true;
+                btnSave.textContent = '[ SAVING... ]';
+                formStatus.textContent = '';
+
+                try {
+                    var payload = {
+                        title: title,
+                        summary: summary,
+                        content: content,
+                        sourceUrl: sourceUrl,
+                        sourceName: sourceName,
+                        tags: tags,
+                        coverImage: coverImage || undefined,
+                        draft: draft,
+                        publishedAt: new Date().toISOString().slice(0, 10),
+                    };
+                    if (id) payload.id = id;
+
+                    var res = await fetch('/api/news', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    var data = await res.json();
+
+                    if (res.ok && data.success) {
+                        window.location.reload();
+                    } else {
+                        formStatus.textContent = '[ERR] ' + (data.error || 'Gagal menyimpan');
+                        formStatus.className = 'font-mono text-xs text-red-400';
+                    }
+                } catch (err) {
+                    formStatus.textContent = '[ERR] Koneksi gagal.';
+                    formStatus.className = 'font-mono text-xs text-red-400';
+                }
+
+                btnSave.disabled = false;
+                btnSave.textContent = '[ SAVE ]';
+            });
+
+            // Delete
+            var deleteButtons = document.querySelectorAll('[data-delete-id]');
+            deleteButtons.forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    var id = btn.getAttribute('data-delete-id');
+                    if (!id) return;
+
+                    var confirmDelete = confirm('Hapus berita ini?');
+                    if (!confirmDelete) return;
+
+                    try {
+                        btn.disabled = true;
+                        btn.textContent = '[ Deleting... ]';
+                        var res = await fetch('/api/news/' + id, { method: 'DELETE' });
+                        var data = await res.json();
+
+                        if (res.ok && data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Gagal menghapus: ' + (data.error || 'Unknown error'));
+                            btn.disabled = false;
+                            btn.textContent = '[ Delete ]';
+                        }
+                    } catch (err) {
+                        alert('Error koneksi saat menghapus.');
+                        btn.disabled = false;
+                        btn.textContent = '[ Delete ]';
+                    }
+                });
+            });
+
+            // Edit
+            var editButtons = document.querySelectorAll('[data-edit-id]');
+            editButtons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    formContainer.classList.remove('hidden');
+                    btnAdd.classList.add('hidden');
+                    formHeading.textContent = 'Edit News Item';
+                    formStatus.textContent = '';
+
+                    document.getElementById('news-id').value = btn.getAttribute('data-edit-id') || '';
+                    document.getElementById('news-title').value = btn.getAttribute('data-edit-title') || '';
+                    document.getElementById('news-summary').value = btn.getAttribute('data-edit-summary') || '';
+                    document.getElementById('news-content').value = btn.getAttribute('data-edit-content') || '';
+                    document.getElementById('news-source-url').value = btn.getAttribute('data-edit-source-url') || '';
+                    document.getElementById('news-source-name').value = btn.getAttribute('data-edit-source-name') || '';
+                    document.getElementById('news-tags').value = btn.getAttribute('data-edit-tags') || '';
+                    document.getElementById('news-cover').value = btn.getAttribute('data-edit-cover') || '';
+                    document.getElementById('news-draft').checked = btn.getAttribute('data-edit-draft') === 'true';
+
+                    // Update summary counter
+                    var len = (btn.getAttribute('data-edit-summary') || '').length;
+                    summaryCounter.textContent = len + '/200';
+                    summaryCounter.className = len > 180 ? 'font-mono text-[10px] text-red-400' : 'font-mono text-[10px] text-muted';
+
+                    // Scroll to form
+                    formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+        });
+    </script>
+
+    <!-- Runtime Theme Interactivity Script -->
+    <script is:inline>
+        (function () {
+            function updateThemeUI(theme) {
+                var buttons = document.querySelectorAll('[data-theme-btn]');
+                buttons.forEach(function (btn) {
+                    var btnTheme = btn.getAttribute('data-theme-btn');
+                    if (btnTheme === theme) {
+                        btn.classList.add('active');
+                        btn.setAttribute('aria-pressed', 'true');
+                    } else {
+                        btn.classList.remove('active');
+                        btn.setAttribute('aria-pressed', 'false');
+                    }
+                });
+            }
+
+            function applyTheme(theme) {
+                localStorage.setItem('theme', theme);
+                var isDark =
+                    theme === 'dark' ||
+                    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+                updateThemeUI(theme);
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var storedTheme = localStorage.getItem('theme') || 'system';
+                updateThemeUI(storedTheme);
+
+                var buttons = document.querySelectorAll('[data-theme-btn]');
+                buttons.forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var val = btn.getAttribute('data-theme-btn');
+                        if (val) {
+                            applyTheme(val);
+                        }
+                    });
+                });
+
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+                    var currentStored = localStorage.getItem('theme') || 'system';
+                    if (currentStored === 'system') {
+                        if (e.matches) {
+                            document.documentElement.classList.add('dark');
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                        }
+                    }
+                });
+            });
+        })();
+    </script>
+</body>
+</html>
