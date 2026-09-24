@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { validateApiKey } from '../../../lib/apikey';
 import { listNews, saveNewsItem } from '../../../lib/news';
+import sanitizeHtml from 'sanitize-html';
 
 export const GET: APIRoute = async ({ cookies, request }) => {
   const session = getSession(cookies);
@@ -34,14 +35,18 @@ export const POST: APIRoute = async ({ cookies, request }) => {
     const body = await request.json();
     const { id, title, summary, content, sourceUrl, sourceName, tags, coverImage, publishedAt, draft } = body;
 
-    if (!title || !summary || !content || !sourceUrl || !sourceName) {
+    const cleanTitle = sanitizeHtml(String(title), { allowedTags: [], allowedAttributes: {} }).trim();
+    const cleanSummary = sanitizeHtml(String(summary), { allowedTags: [], allowedAttributes: {} }).trim();
+    const cleanSourceName = sanitizeHtml(String(sourceName), { allowedTags: [], allowedAttributes: {} }).trim();
+
+    if (!cleanTitle || !cleanSummary || !content || !sourceUrl || !cleanSourceName) {
       return new Response(
         JSON.stringify({ error: 'title, summary, content, sourceUrl, dan sourceName wajib diisi' }),
         { status: 400 },
       );
     }
 
-    if (summary.length > 200) {
+    if (cleanSummary.length > 200) {
       return new Response(
         JSON.stringify({ error: 'Summary maksimal 200 karakter' }),
         { status: 400 },
@@ -50,11 +55,11 @@ export const POST: APIRoute = async ({ cookies, request }) => {
 
     const result = await saveNewsItem({
       id,
-      title,
-      summary,
+      title: cleanTitle,
+      summary: cleanSummary,
       content,
       sourceUrl,
-      sourceName,
+      sourceName: cleanSourceName,
       tags: tags || [],
       coverImage: coverImage || undefined,
       draft: draft !== undefined ? Boolean(draft) : false,

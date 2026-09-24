@@ -1,4 +1,5 @@
 ---
+import '../../../styles/global.css';
 import { getSession } from '../../../lib/auth';
 import { listNews } from '../../../lib/news';
 import { getProfileData } from '../../../lib/cms';
@@ -55,32 +56,6 @@ try {
         rel="stylesheet"
     />
 
-    <script is:inline src="https://cdn.tailwindcss.com?plugins=forms"></script>
-    <script is:inline id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        primary:    "var(--color-primary)",
-                        background: "var(--color-background)",
-                        surface:    "var(--color-surface)",
-                        border:     "var(--color-border)",
-                        text:       "var(--color-text)",
-                        muted:      "var(--color-muted)",
-                        accent:     "var(--color-accent)",
-                    },
-                    fontFamily: {
-                        mono: ["JetBrains Mono", "monospace"],
-                        sans: ["IBM Plex Sans", "sans-serif"],
-                    },
-                    borderRadius: {
-                        DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px",
-                    },
-                },
-            },
-        };
-    </script>
     <style is:global>
         :root {
             --color-background: #ffffff;

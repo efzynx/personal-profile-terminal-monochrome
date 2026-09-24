@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { listPosts, savePost } from '../../../lib/cms';
+import sanitizeHtml from 'sanitize-html';
 
 export const GET: APIRoute = async ({ cookies }) => {
   // Auth sudah divalidasi di middleware (session cookie ATAU API key)
@@ -29,7 +30,18 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       return new Response(JSON.stringify({ error: 'Slug dan Judul wajib diisi' }), { status: 400 });
     }
 
-    const result = await savePost({ slug, oldSlug, frontmatter, content: content || '' }, session?.token);
+    const cleanTitle = sanitizeHtml(String(frontmatter.title), { allowedTags: [], allowedAttributes: {} }).trim();
+    const cleanDescription = frontmatter.description
+      ? sanitizeHtml(String(frontmatter.description), { allowedTags: [], allowedAttributes: {} }).trim()
+      : '';
+
+    const sanitizedFrontmatter = {
+      ...frontmatter,
+      title: cleanTitle,
+      description: cleanDescription,
+    };
+
+    const result = await savePost({ slug, oldSlug, frontmatter: sanitizedFrontmatter, content: content || '' }, session?.token);
 
     if (!result.success) {
       return new Response(JSON.stringify({ error: result.message }), { status: 500 });

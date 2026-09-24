@@ -29,6 +29,7 @@ const {
     backLabel = "cd ..",
 } = Astro.props;
 
+import '../styles/global.css';
 import { getProfileData } from "../lib/cms";
 
 const profileData = await getProfileData();
@@ -77,40 +78,6 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
             href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
             rel="stylesheet"
         />
-
-        <!-- Tailwind CDN -->
-        <script
-            is:inline
-            src="https://cdn.tailwindcss.com?plugins=forms,container-queries"
-        ></script>
-        <script is:inline id="tailwind-config">
-            tailwind.config = {
-                darkMode: "class",
-                theme: {
-                    extend: {
-                        colors: {
-                            primary: "var(--color-primary)",
-                            background: "var(--color-background)",
-                            surface: "var(--color-surface)",
-                            border: "var(--color-border)",
-                            text: "var(--color-text)",
-                            muted: "var(--color-muted)",
-                            accent: "var(--color-accent)",
-                        },
-                        fontFamily: {
-                            mono: ["JetBrains Mono", "monospace"],
-                            sans: ["IBM Plex Sans", "sans-serif"],
-                        },
-                        borderRadius: {
-                            DEFAULT: "0px",
-                            lg: "0px",
-                            xl: "0px",
-                            full: "0px",
-                        },
-                    },
-                },
-            };
-        </script>
 
         <style is:global>
             :root {
