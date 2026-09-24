@@ -1,6 +1,5 @@
 // @ts-check
 import { defineConfig, passthroughImageService } from 'astro/config';
-import tailwindcss from '@tailwindcss/vite';
 import vercel from '@astrojs/vercel';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -23,7 +22,6 @@ export default defineConfig({
     checkOrigin: false, // Dihandle manual di middleware (agar API key request tidak kena CSRF block)
   },
   vite: {
-    plugins: [tailwindcss()],
     server: {
       allowedHosts: allowedHosts,
     },

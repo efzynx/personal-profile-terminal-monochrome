@@ -206,6 +206,7 @@ export async function deleteApiKey(): Promise<{ success: boolean; message: strin
 /**
  * Validasi API key dari request header.
  * Return true jika key valid dan enabled.
+ * Menggunakan crypto.timingSafeEqual untuk menangkal timing attacks.
  */
 export async function validateApiKey(authHeader: string | null): Promise<boolean> {
   if (!authHeader) return false;
@@ -217,7 +218,13 @@ export async function validateApiKey(authHeader: string | null): Promise<boolean
   if (!token) return false;
 
   const config = await getApiKeyConfig();
-  if (!config || !config.enabled) return false;
+  const validKey = config && config.enabled && config.key ? config.key : process.env.CMS_API_KEY;
 
-  return config.key === token;
+  if (!validKey) return false;
+
+  const tokenBuf = Buffer.from(token, 'utf8');
+  const keyBuf = Buffer.from(validKey, 'utf8');
+
+  if (tokenBuf.length !== keyBuf.length) return false;
+  return crypto.timingSafeEqual(tokenBuf, keyBuf);
 }

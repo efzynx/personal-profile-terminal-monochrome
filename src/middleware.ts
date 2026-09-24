@@ -21,8 +21,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const pathname = url.pathname;
 
   const isDashboardRoute = pathname.startsWith('/writer/dashboard');
-  const isProtectedApi = pathname.startsWith('/api/posts') || pathname.startsWith('/api/upload');
-  const isSettingsApi = pathname.startsWith('/api/settings');
+  const isProtectedApi =
+    pathname.startsWith('/api/posts') ||
+    pathname.startsWith('/api/news') ||
+    pathname.startsWith('/api/upload');
+  const isSettingsApi = pathname.startsWith('/api/settings') || pathname.startsWith('/api/profile');
   const isApiRoute = pathname.startsWith('/api/');
 
   // --- Auth & CSRF untuk Protected API (posts, upload) ---
@@ -80,9 +83,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  // --- CSRF untuk API route lainnya (auth callback dll.) ---
+  // --- Guard untuk API route yang mengubah data: jangan bergantung hanya pada header Origin ---
   if (isApiRoute && isUnsafeMethod(request.method)) {
-    if (!originMatchesSite(request, url)) {
+    const session = getSession(cookies);
+    const authHeader = request.headers.get('Authorization');
+    const isValidApiKey = authHeader ? await validateApiKey(authHeader) : false;
+
+    if (!session && !isValidApiKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Autentikasi diperlukan' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (session && !isValidApiKey && !originMatchesSite(request, url)) {
       return new Response(JSON.stringify({ error: 'Forbidden: CSRF check failed' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
@@ -90,5 +104,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  return next();
+  const response = await next();
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), browsing-topics=()');
+  return response;
 });

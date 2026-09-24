@@ -93,7 +93,7 @@ GITHUB_REPO_NAME=nama_repo_anda
 SESSION_SECRET=kunci_rahasia_acak_min_32_karakter
 
 # GitHub Personal Access Token (Buat di https://github.com/settings/tokens)
-GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GITHUB_TOKEN=your_github_personal_access_token
 ```
 
 ### 4. Jalankan Server Lokal

@@ -3,6 +3,7 @@ export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getNewsItem } from "../../lib/news";
 import { formatDate, calculateReadTime } from "../../lib/utils";
+import { sanitizeArticleContent } from "../../lib/sanitize";
 import { Marked } from "marked";
 
 const { id } = Astro.params;
@@ -72,7 +73,7 @@ markedInstance.use({
     },
 });
 
-const htmlContent = markedInstance.parse(rawContent);
+const htmlContent = sanitizeArticleContent(markedInstance.parse(rawContent) as string);
 ---
 
 <BaseLayout

@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import crypto from 'node:crypto';
 import { setSession } from '../../../lib/auth';
 
 export const GET: APIRoute = async ({ redirect, cookies, url }) => {
@@ -21,13 +22,25 @@ export const GET: APIRoute = async ({ redirect, cookies, url }) => {
     );
   }
 
-  const redirectUri = `${url.origin}/api/auth/callback`;
-  const state = Math.random().toString(36).substring(2);
+  // 1. Generate kriptografis random token untuk parameter state (32 bytes hex)
+  const state = crypto.randomBytes(32).toString('hex');
 
+  // 2. Simpan token state ke dalam cookie oauth_state dengan HttpOnly, Secure, SameSite=Lax, max-age 10 menit
+  cookies.set('oauth_state', state, {
+    path: '/',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production' || url.protocol === 'https:',
+    sameSite: 'lax',
+    maxAge: 60 * 10, // 10 menit
+  });
+
+  const redirectUri = `${url.origin}/api/auth/callback`;
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
   githubAuthUrl.searchParams.set('client_id', clientId);
   githubAuthUrl.searchParams.set('redirect_uri', redirectUri);
-  githubAuthUrl.searchParams.set('scope', 'repo user');
+
+  // 3. Kurangi scope OAuth menjadi read:user user:email (least privilege)
+  githubAuthUrl.searchParams.set('scope', 'read:user user:email');
   githubAuthUrl.searchParams.set('state', state);
 
   return redirect(githubAuthUrl.toString());
