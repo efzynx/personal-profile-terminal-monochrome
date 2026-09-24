@@ -43,6 +43,7 @@ export const newsItems = pgTable('news_items', {
   sourceName: text('source_name').notNull(),
   tags: jsonb('tags').$type<string[]>().default([]),
   coverImage: text('cover_image'),
+  draft: boolean('draft').notNull().default(false),
   publishedAt: text('published_at').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

@@ -143,6 +143,12 @@ try {
                 </div>
 
                 <a
+                    href="/"
+                    class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-3 py-1 no-underline transition-colors duration-0 cursor-[crosshair]"
+                >
+                    cd ~/
+                </a>
+                <a
                     href="/api/auth/logout"
                     class="font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1 no-underline transition-colors duration-0 cursor-[crosshair]"
                 >
@@ -216,8 +222,11 @@ try {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="font-mono text-xs text-accent">Summary *</label>
-                <textarea id="news-summary" rows="3" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Ringkasan 1-2 kalimat"></textarea>
+                <div class="flex items-center justify-between">
+                    <label class="font-mono text-xs text-accent">Summary * <span class="text-muted">(maks. 200 karakter)</span></label>
+                    <span id="summary-counter" class="font-mono text-[10px] text-muted">0/200</span>
+                </div>
+                <textarea id="news-summary" rows="3" maxlength="200" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Ringkasan 1-2 kalimat"></textarea>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -243,8 +252,15 @@ try {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="font-mono text-xs text-accent">Content — Markdown (optional, for full article)</label>
-                <textarea id="news-content" rows="10" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Konten lengkap dalam format Markdown (opsional). Jika kosong, halaman detail akan menampilkan ringkasan dan link ke sumber asli."></textarea>
+                <label class="font-mono text-xs text-accent">Content — Markdown *</label>
+                <textarea id="news-content" rows="10" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Konten lengkap dalam format Markdown."></textarea>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 font-mono text-xs text-accent cursor-[crosshair] select-none">
+                    <input type="checkbox" id="news-draft" class="bg-background border-muted text-primary focus:ring-0 cursor-[crosshair]" />
+                    Simpan sebagai draft (belum publish)
+                </label>
             </div>
 
             <div class="flex items-center gap-4 pt-2">
@@ -274,6 +290,11 @@ try {
                                     <span class="text-accent">{item.publishedAt}</span>
                                     <span class="text-muted">|</span>
                                     <span class="text-muted">{item.sourceName}</span>
+                                    {item.draft ? (
+                                        <span class="px-2 py-0.5 text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">DRAFT</span>
+                                    ) : (
+                                        <span class="px-2 py-0.5 text-[10px] bg-green-500/20 text-green-300 border border-green-500/40">PUBLISHED</span>
+                                    )}
                                     {(item.tags || []).map((tag: string) => (
                                         <span class="text-[10px] text-muted border border-muted px-1 py-0.5">#{tag}</span>
                                     ))}
@@ -288,6 +309,13 @@ try {
 
                             <!-- Actions -->
                             <div class="flex items-center gap-2 shrink-0 font-mono text-xs">
+                                <a
+                                    href={`/news/${item.id}`}
+                                    target="_blank"
+                                    class="text-accent hover:text-primary border border-muted hover:border-accent px-3 py-1.5 no-underline transition-colors cursor-[crosshair]"
+                                >
+                                    [ View ]
+                                </a>
                                 <a
                                     href={item.sourceUrl}
                                     target="_blank"
@@ -319,6 +347,19 @@ try {
             var btnCancel = document.getElementById('btn-cancel-form');
             var btnSave = document.getElementById('btn-save-news');
             var formStatus = document.getElementById('form-status');
+            var summaryField = document.getElementById('news-summary');
+            var summaryCounter = document.getElementById('summary-counter');
+
+            // Summary character counter
+            summaryField.addEventListener('input', function () {
+                var len = summaryField.value.length;
+                summaryCounter.textContent = len + '/200';
+                if (len > 180) {
+                    summaryCounter.className = 'font-mono text-[10px] text-red-400';
+                } else {
+                    summaryCounter.className = 'font-mono text-[10px] text-muted';
+                }
+            });
 
             // Show form
             btnAdd.addEventListener('click', function () {
@@ -332,6 +373,8 @@ try {
                 document.getElementById('news-source-name').value = '';
                 document.getElementById('news-tags').value = '';
                 document.getElementById('news-cover').value = '';
+                document.getElementById('news-draft').checked = false;
+                document.getElementById('summary-counter').textContent = '0/200';
                 formStatus.textContent = '';
             });
 
@@ -351,9 +394,16 @@ try {
                 var tagsRaw = document.getElementById('news-tags').value.trim();
                 var coverImage = document.getElementById('news-cover').value.trim();
                 var id = document.getElementById('news-id').value.trim();
+                var draft = document.getElementById('news-draft').checked;
 
-                if (!title || !summary || !sourceUrl || !sourceName) {
-                    formStatus.textContent = '[ERR] Title, Summary, Source URL, dan Source Name wajib diisi.';
+                if (!title || !summary || !content || !sourceUrl || !sourceName) {
+                    formStatus.textContent = '[ERR] Title, Summary, Content, Source URL, dan Source Name wajib diisi.';
+                    formStatus.className = 'font-mono text-xs text-red-400';
+                    return;
+                }
+
+                if (summary.length > 200) {
+                    formStatus.textContent = '[ERR] Summary maksimal 200 karakter.';
                     formStatus.className = 'font-mono text-xs text-red-400';
                     return;
                 }
@@ -373,6 +423,7 @@ try {
                         sourceName: sourceName,
                         tags: tags,
                         coverImage: coverImage || undefined,
+                        draft: draft,
                         publishedAt: new Date().toISOString().slice(0, 10),
                     };
                     if (id) payload.id = id;

@@ -8,7 +8,7 @@ import { Marked } from "marked";
 const { id } = Astro.params;
 const item = await getNewsItem(id || "");
 
-if (!item) {
+if (!item || item.draft) {
     return Astro.redirect("/news");
 }
 

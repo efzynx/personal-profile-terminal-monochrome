@@ -32,11 +32,18 @@ export const POST: APIRoute = async ({ cookies, request }) => {
 
   try {
     const body = await request.json();
-    const { id, title, summary, content, sourceUrl, sourceName, tags, coverImage, publishedAt } = body;
+    const { id, title, summary, content, sourceUrl, sourceName, tags, coverImage, publishedAt, draft } = body;
 
-    if (!title || !summary || !sourceUrl || !sourceName) {
+    if (!title || !summary || !content || !sourceUrl || !sourceName) {
       return new Response(
-        JSON.stringify({ error: 'title, summary, sourceUrl, dan sourceName wajib diisi' }),
+        JSON.stringify({ error: 'title, summary, content, sourceUrl, dan sourceName wajib diisi' }),
+        { status: 400 },
+      );
+    }
+
+    if (summary.length > 200) {
+      return new Response(
+        JSON.stringify({ error: 'Summary maksimal 200 karakter' }),
         { status: 400 },
       );
     }
@@ -45,11 +52,12 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       id,
       title,
       summary,
-      content: content || '',
+      content,
       sourceUrl,
       sourceName,
       tags: tags || [],
       coverImage: coverImage || undefined,
+      draft: draft !== undefined ? Boolean(draft) : false,
       publishedAt: publishedAt || new Date().toISOString().slice(0, 10),
     });
 

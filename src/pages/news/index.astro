@@ -1,12 +1,12 @@
 ---
 export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
-import { listNews } from "../../lib/news";
+import { listPublishedNews } from "../../lib/news";
 import { getProfileData } from "../../lib/cms";
 import { formatDate } from "../../lib/utils";
 
 const profileData = await getProfileData();
-const news = await listNews();
+const news = await listPublishedNews();
 
 const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('@')[0] : "user";
 

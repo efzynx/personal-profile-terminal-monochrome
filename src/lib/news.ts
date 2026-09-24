@@ -11,6 +11,7 @@ export interface NewsItem {
   sourceName: string;
   tags: string[];
   coverImage?: string;
+  draft: boolean;
   publishedAt: string;
 }
 
@@ -68,6 +69,7 @@ export async function listNews(): Promise<NewsItem[]> {
           sourceName: item.source_name || item.sourceName,
           tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
           coverImage: item.cover_image || item.coverImage || undefined,
+          draft: Boolean(item.draft),
           publishedAt: item.published_at || item.publishedAt,
         }));
       }
@@ -77,6 +79,42 @@ export async function listNews(): Promise<NewsItem[]> {
   if (!isProductionEnv()) {
     const items = readLocalNews();
     return items.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  }
+
+  return [];
+}
+
+export async function listPublishedNews(): Promise<NewsItem[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('news_items')
+        .select('*')
+        .eq('draft', false)
+        .order('published_at', { ascending: false });
+      if (data && !error) {
+        return data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          content: item.content || '',
+          sourceUrl: item.source_url || item.sourceUrl,
+          sourceName: item.source_name || item.sourceName,
+          tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
+          coverImage: item.cover_image || item.coverImage || undefined,
+          draft: false,
+          publishedAt: item.published_at || item.publishedAt,
+        }));
+      }
+    }
+  }
+
+  if (!isProductionEnv()) {
+    const items = readLocalNews();
+    return items
+      .filter(i => !i.draft)
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   }
 
   return [];
@@ -97,6 +135,7 @@ export async function getNewsItem(id: string): Promise<NewsItem | null> {
           sourceName: data.source_name || data.sourceName,
           tags: typeof data.tags === 'string' ? JSON.parse(data.tags) : (data.tags || []),
           coverImage: data.cover_image || data.coverImage || undefined,
+          draft: Boolean(data.draft),
           publishedAt: data.published_at || data.publishedAt,
         };
       }
@@ -126,6 +165,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
         source_name: item.sourceName,
         tags: item.tags || [],
         cover_image: item.coverImage || null,
+        draft: Boolean(item.draft),
         published_at: item.publishedAt,
         updated_at: new Date().toISOString(),
       };
@@ -150,6 +190,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
       sourceName: item.sourceName,
       tags: item.tags || [],
       coverImage: item.coverImage || undefined,
+      draft: Boolean(item.draft),
       publishedAt: item.publishedAt,
     };
     if (idx >= 0) {
