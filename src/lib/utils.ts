@@ -3,8 +3,16 @@
  */
 
 export function formatDate(d: Date | string): string {
-  const dateObj = typeof d === 'string' ? new Date(d) : d;
-  return dateObj.toISOString().slice(0, 10);
+  if (!d) return '';
+  try {
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    if (isNaN(dateObj.getTime())) {
+      return typeof d === 'string' ? d.slice(0, 10) : '';
+    }
+    return dateObj.toISOString().slice(0, 10);
+  } catch {
+    return typeof d === 'string' ? d.slice(0, 10) : '';
+  }
 }
 
 export function timeAgo(dateStr: string): string {

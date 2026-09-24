@@ -13,6 +13,7 @@ export interface NewsItem {
   coverImage?: string;
   draft: boolean;
   publishedAt: string;
+  createdAt?: string;
 }
 
 function isProductionEnv(): boolean {
@@ -58,7 +59,8 @@ export async function listNews(): Promise<NewsItem[]> {
       const { data, error } = await supabase
         .from('news_items')
         .select('*')
-        .order('published_at', { ascending: false });
+        .order('published_at', { ascending: false })
+        .order('created_at', { ascending: false });
       if (data && !error) {
         return data.map((item: any) => ({
           id: item.id,
@@ -71,6 +73,7 @@ export async function listNews(): Promise<NewsItem[]> {
           coverImage: item.cover_image || item.coverImage || undefined,
           draft: Boolean(item.draft),
           publishedAt: item.published_at || item.publishedAt,
+          createdAt: item.created_at || item.createdAt || undefined,
         }));
       }
     }
@@ -78,7 +81,14 @@ export async function listNews(): Promise<NewsItem[]> {
 
   if (!isProductionEnv()) {
     const items = readLocalNews();
-    return items.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    return items.sort((a, b) => {
+      const timeDiff = new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      const bCreated = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+      const aCreated = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+      if (bCreated !== aCreated) return bCreated - aCreated;
+      return b.id.localeCompare(a.id);
+    });
   }
 
   return [];
@@ -92,7 +102,8 @@ export async function listPublishedNews(): Promise<NewsItem[]> {
         .from('news_items')
         .select('*')
         .eq('draft', false)
-        .order('published_at', { ascending: false });
+        .order('published_at', { ascending: false })
+        .order('created_at', { ascending: false });
       if (data && !error) {
         return data.map((item: any) => ({
           id: item.id,
@@ -105,6 +116,7 @@ export async function listPublishedNews(): Promise<NewsItem[]> {
           coverImage: item.cover_image || item.coverImage || undefined,
           draft: false,
           publishedAt: item.published_at || item.publishedAt,
+          createdAt: item.created_at || item.createdAt || undefined,
         }));
       }
     }
@@ -114,7 +126,14 @@ export async function listPublishedNews(): Promise<NewsItem[]> {
     const items = readLocalNews();
     return items
       .filter(i => !i.draft)
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+      .sort((a, b) => {
+        const timeDiff = new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        const bCreated = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+        const aCreated = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+        if (bCreated !== aCreated) return bCreated - aCreated;
+        return b.id.localeCompare(a.id);
+      });
   }
 
   return [];
@@ -137,6 +156,7 @@ export async function getNewsItem(id: string): Promise<NewsItem | null> {
           coverImage: data.cover_image || data.coverImage || undefined,
           draft: Boolean(data.draft),
           publishedAt: data.published_at || data.publishedAt,
+          createdAt: data.created_at || data.createdAt || undefined,
         };
       }
     }
@@ -152,11 +172,12 @@ export async function getNewsItem(id: string): Promise<NewsItem | null> {
 
 export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string }): Promise<{ success: boolean; message: string; id?: string }> {
   const id = item.id || generateId();
+  const nowIso = new Date().toISOString();
 
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
-      const payload = {
+      const payload: any = {
         id,
         title: item.title,
         summary: item.summary,
@@ -167,8 +188,11 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
         cover_image: item.coverImage || null,
         draft: Boolean(item.draft),
         published_at: item.publishedAt,
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       };
+      if (item.createdAt) {
+        payload.created_at = item.createdAt;
+      }
       const { error } = await supabase.from('news_items').upsert(payload);
       if (!error) {
         return { success: true, message: 'News berhasil disimpan.', id };
@@ -181,6 +205,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
   if (!isProductionEnv()) {
     const items = readLocalNews();
     const idx = items.findIndex(i => i.id === id);
+    const existing = idx >= 0 ? items[idx] : null;
     const newsItem: NewsItem = {
       id,
       title: item.title,
@@ -192,6 +217,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
       coverImage: item.coverImage || undefined,
       draft: Boolean(item.draft),
       publishedAt: item.publishedAt,
+      createdAt: item.createdAt || existing?.createdAt || nowIso,
     };
     if (idx >= 0) {
       items[idx] = newsItem;
