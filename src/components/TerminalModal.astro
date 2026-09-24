@@ -1,0 +1,158 @@
+---
+/**
+ * TerminalModal.astro
+ * Komponen modal kustom bertema terminal monokrom untuk menggantikan window.alert() dan window.confirm().
+ * Menyediakan window.terminalAlert(message, title) dan window.terminalConfirm(message, title).
+ */
+---
+
+<div
+    id="terminal-modal-backdrop"
+    class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 hidden select-none"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="terminal-modal-title"
+>
+    <div
+        id="terminal-modal-card"
+        class="w-full max-w-md bg-surface border border-muted shadow-2xl flex flex-col font-mono text-xs overflow-hidden"
+    >
+        <!-- Modal Titlebar -->
+        <div class="flex items-center justify-between border-b border-muted px-4 py-2.5 bg-background">
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 bg-primary"></span>
+                <span id="terminal-modal-title" class="font-bold text-primary uppercase tracking-wider">
+                    &gt; system_alert
+                </span>
+            </div>
+            <button
+                id="terminal-modal-close-x"
+                type="button"
+                class="text-muted hover:text-primary transition-colors cursor-[crosshair] px-1"
+                title="Tutup dialog"
+            >
+                [X]
+            </button>
+        </div>
+
+        <!-- Modal Message Body -->
+        <div class="p-6 flex flex-col gap-3 font-mono text-xs text-text leading-relaxed bg-surface">
+            <p id="terminal-modal-message" class="whitespace-pre-line break-words"></p>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="border-t border-muted px-4 py-3 bg-background flex items-center justify-end gap-3 font-mono text-xs">
+            <button
+                id="terminal-modal-cancel-btn"
+                type="button"
+                class="border border-muted hover:border-primary text-accent hover:text-primary px-4 py-2 transition-colors cursor-[crosshair] hidden"
+            >
+                [ BATAL ]
+            </button>
+            <button
+                id="terminal-modal-confirm-btn"
+                type="button"
+                class="border border-primary bg-primary text-background hover:bg-background hover:text-primary font-bold px-5 py-2 transition-colors cursor-[crosshair]"
+            >
+                [ OK ]
+            </button>
+        </div>
+    </div>
+</div>
+
+<script is:inline>
+    (function () {
+        var backdrop = document.getElementById('terminal-modal-backdrop');
+        var card = document.getElementById('terminal-modal-card');
+        var titleEl = document.getElementById('terminal-modal-title');
+        var messageEl = document.getElementById('terminal-modal-message');
+        var cancelBtn = document.getElementById('terminal-modal-cancel-btn');
+        var confirmBtn = document.getElementById('terminal-modal-confirm-btn');
+        var closeXBtn = document.getElementById('terminal-modal-close-x');
+
+        var currentResolver = null;
+        var isConfirmMode = false;
+
+        function closeModal(result) {
+            if (!backdrop) return;
+            backdrop.classList.add('hidden');
+            if (currentResolver) {
+                var resolve = currentResolver;
+                currentResolver = null;
+                resolve(result);
+            }
+        }
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function () {
+                closeModal(true);
+            });
+        }
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function () {
+                closeModal(false);
+            });
+        }
+
+        if (closeXBtn) {
+            closeXBtn.addEventListener('click', function () {
+                closeModal(false);
+            });
+        }
+
+        // Close on backdrop click outside the card
+        if (backdrop) {
+            backdrop.addEventListener('click', function (e) {
+                if (e.target === backdrop) {
+                    closeModal(false);
+                }
+            });
+        }
+
+        // Keyboard handler
+        window.addEventListener('keydown', function (e) {
+            if (!backdrop || backdrop.classList.contains('hidden')) return;
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeModal(false);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                closeModal(true);
+            }
+        });
+
+        window.terminalAlert = function (message, title) {
+            return new Promise(function (resolve) {
+                currentResolver = resolve;
+                isConfirmMode = false;
+
+                if (titleEl) titleEl.textContent = '> ' + (title || 'SYSTEM NOTICE');
+                if (messageEl) messageEl.textContent = message || '';
+                if (cancelBtn) cancelBtn.classList.add('hidden');
+                if (confirmBtn) {
+                    confirmBtn.textContent = '[ OK ]';
+                    confirmBtn.focus();
+                }
+                if (backdrop) backdrop.classList.remove('hidden');
+            });
+        };
+
+        window.terminalConfirm = function (message, title) {
+            return new Promise(function (resolve) {
+                currentResolver = resolve;
+                isConfirmMode = true;
+
+                if (titleEl) titleEl.textContent = '> ' + (title || 'CONFIRMATION REQUIRED');
+                if (messageEl) messageEl.textContent = message || '';
+                if (cancelBtn) cancelBtn.classList.remove('hidden');
+                if (confirmBtn) {
+                    confirmBtn.textContent = '[ YA, LANJUTKAN ]';
+                    confirmBtn.focus();
+                }
+                if (backdrop) backdrop.classList.remove('hidden');
+            });
+        };
+    })();
+</script>

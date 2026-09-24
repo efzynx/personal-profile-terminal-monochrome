@@ -2,6 +2,7 @@
 import '../../../styles/global.css';
 import { getSession } from '../../../lib/auth';
 import { listPosts, getProfileData } from '../../../lib/cms';
+import TerminalModal from '../../../components/TerminalModal.astro';
 
 const session = getSession(Astro.cookies);
 if (!session) {
@@ -90,7 +91,7 @@ try {
         }
     </style>
 </head>
-<body class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-8 lg:px-12">
+<body class="min-h-screen bg-background text-text flex justify-center pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16">
     <div class="w-full max-w-7xl flex flex-col gap-6">
 
         <!-- Top Nav Bar -->
@@ -257,7 +258,9 @@ try {
                     var slug = btn.getAttribute('data-delete-slug');
                     if (!slug) return;
 
-                    var confirmDelete = confirm('Apakah Anda yakin ingin menghapus artikel "' + slug + '"?');
+                    var confirmDelete = window.terminalConfirm
+                        ? await window.terminalConfirm('Apakah Anda yakin ingin menghapus artikel "' + slug + '"?', 'HAPUS ARTIKEL')
+                        : confirm('Apakah Anda yakin ingin menghapus artikel "' + slug + '"?');
                     if (!confirmDelete) return;
 
                     try {
@@ -271,12 +274,21 @@ try {
                         if (res.ok && data.success) {
                             window.location.reload();
                         } else {
-                            alert('Gagal menghapus: ' + (data.error || data.message || 'Unknown error'));
+                            var errMsg = data.error || data.message || 'Gagal menghapus postingan';
+                            if (window.terminalAlert) {
+                                await window.terminalAlert(errMsg, 'ERROR PENGHAPUSAN');
+                            } else {
+                                alert(errMsg);
+                            }
                             btn.disabled = false;
                             btn.textContent = '[ Delete ]';
                         }
                     } catch (err) {
-                        alert('Error koneksi saat menghapus.');
+                        if (window.terminalAlert) {
+                            await window.terminalAlert('Terjadi kesalahan koneksi saat menghapus artikel.', 'ERROR KONEKSI');
+                        } else {
+                            alert('Error koneksi saat menghapus.');
+                        }
                         btn.disabled = false;
                         btn.textContent = '[ Delete ]';
                     }
@@ -342,5 +354,6 @@ try {
             });
         })();
     </script>
+    <TerminalModal />
 </body>
 </html>

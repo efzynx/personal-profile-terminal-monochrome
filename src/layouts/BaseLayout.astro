@@ -31,6 +31,7 @@ const {
 
 import '../styles/global.css';
 import { getProfileData } from "../lib/cms";
+import TerminalModal from "../components/TerminalModal.astro";
 
 const profileData = await getProfileData();
 const activeFavicon = profileData.faviconUrl || "/favicon.svg";
@@ -103,29 +104,6 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
                 --color-primary: #f0f0f0;
             }
 
-            /* Base */
-            body {
-                background-color: var(--color-background);
-                color: var(--color-text);
-                font-family: "IBM Plex Sans", sans-serif;
-            }
-
-            /* Terminal hover */
-            .terminal-hover:hover {
-                background-color: var(--color-surface);
-            }
-            .terminal-hover:hover .title-text::before {
-                content: "* ";
-                color: var(--color-primary);
-            }
-
-            /* Links */
-            a {
-                text-decoration: none;
-                cursor: crosshair;
-                transition: color 0ms;
-            }
-
             /* Theme Selector Active State */
             .theme-btn.active {
                 color: var(--color-primary);
@@ -135,7 +113,7 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
         </style>
     </head>
     <body
-        class="min-h-screen bg-background text-text flex justify-center py-10 px-4 md:px-8 lg:px-12"
+        class="min-h-screen bg-background text-text flex justify-center pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16"
     >
         <div class="w-full max-w-7xl flex flex-col gap-8">
             <!-- Top Nav / Breadcrumb & Theme Selector -->
@@ -271,5 +249,6 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
                 });
             })();
         </script>
+        <TerminalModal />
     </body>
 </html>

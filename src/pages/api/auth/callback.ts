@@ -9,25 +9,13 @@ export const GET: APIRoute = async ({ url, redirect, cookies }) => {
   // 1. Hapus cookie oauth_state segera setelah dibaca
   cookies.delete('oauth_state', { path: '/' });
 
-  // 2. Validasi Anti-CSRF State: Jika tidak cocok atau kosong, tolak 403 Forbidden
+  // 2. Validasi Anti-CSRF State: Jika tidak cocok atau kosong, redirect dengan parameter error
   if (!returnedState || !savedState || returnedState !== savedState) {
-    return new Response(
-      JSON.stringify({ error: 'Forbidden: Parameter state OAuth tidak cocok atau kedaluwarsa (Anti-CSRF)' }),
-      {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return redirect('/writer?error=csrf_failed');
   }
 
   if (!code) {
-    return new Response(
-      JSON.stringify({ error: 'Bad Request: Missing authorization code' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return redirect('/writer?error=missing_code');
   }
 
   const clientId = process.env.GITHUB_CLIENT_ID;
@@ -51,13 +39,7 @@ export const GET: APIRoute = async ({ url, redirect, cookies }) => {
     const accessToken = tokenData.access_token;
 
     if (!accessToken) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Gagal memperoleh access token dari GitHub' }),
-        {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return redirect('/writer?error=invalid_token');
     }
 
     const userRes = await fetch('https://api.github.com/user', {
@@ -68,13 +50,7 @@ export const GET: APIRoute = async ({ url, redirect, cookies }) => {
     });
 
     if (!userRes.ok) {
-      return new Response(
-        JSON.stringify({ error: 'Bad Gateway: Gagal mengambil profil user dari GitHub' }),
-        {
-          status: 502,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return redirect('/writer?error=user_fetch_failed');
     }
 
     const userData = await userRes.json();
@@ -99,13 +75,7 @@ export const GET: APIRoute = async ({ url, redirect, cookies }) => {
       (allowedUsernames.length > 0 && allowedUsernames.includes(String(userData.login).toLowerCase()));
 
     if (!isAuthorized) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Akun GitHub Anda tidak terdaftar dalam whitelist admin' }),
-        {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return redirect(`/writer?error=unauthorized_user&user=${encodeURIComponent(userData.login)}`);
     }
 
     setSession(cookies, {
@@ -118,12 +88,6 @@ export const GET: APIRoute = async ({ url, redirect, cookies }) => {
     return redirect('/writer/dashboard');
   } catch (err: any) {
     console.error('OAuth Callback Error:', err);
-    return new Response(
-      JSON.stringify({ error: err.message || 'Internal Server Error' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return redirect('/writer?error=server_error');
   }
 };
