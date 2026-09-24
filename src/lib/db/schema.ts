@@ -38,6 +38,7 @@ export const newsItems = pgTable('news_items', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   summary: text('summary').notNull(),
+  content: text('content').notNull().default(''),
   sourceUrl: text('source_url').notNull(),
   sourceName: text('source_name').notNull(),
   tags: jsonb('tags').$type<string[]>().default([]),

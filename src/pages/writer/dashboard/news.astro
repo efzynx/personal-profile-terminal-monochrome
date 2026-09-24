@@ -242,6 +242,11 @@ try {
                 </div>
             </div>
 
+            <div class="flex flex-col gap-1">
+                <label class="font-mono text-xs text-accent">Content — Markdown (optional, for full article)</label>
+                <textarea id="news-content" rows="10" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Konten lengkap dalam format Markdown (opsional). Jika kosong, halaman detail akan menampilkan ringkasan dan link ke sumber asli."></textarea>
+            </div>
+
             <div class="flex items-center gap-4 pt-2">
                 <button
                     type="button"
@@ -322,6 +327,7 @@ try {
                 document.getElementById('news-id').value = '';
                 document.getElementById('news-title').value = '';
                 document.getElementById('news-summary').value = '';
+                document.getElementById('news-content').value = '';
                 document.getElementById('news-source-url').value = '';
                 document.getElementById('news-source-name').value = '';
                 document.getElementById('news-tags').value = '';
@@ -339,6 +345,7 @@ try {
             btnSave.addEventListener('click', async function () {
                 var title = document.getElementById('news-title').value.trim();
                 var summary = document.getElementById('news-summary').value.trim();
+                var content = document.getElementById('news-content').value.trim();
                 var sourceUrl = document.getElementById('news-source-url').value.trim();
                 var sourceName = document.getElementById('news-source-name').value.trim();
                 var tagsRaw = document.getElementById('news-tags').value.trim();
@@ -361,6 +368,7 @@ try {
                     var payload = {
                         title: title,
                         summary: summary,
+                        content: content,
                         sourceUrl: sourceUrl,
                         sourceName: sourceName,
                         tags: tags,

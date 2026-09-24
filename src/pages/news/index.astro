@@ -53,7 +53,16 @@ const allTags = Array.from(new Set(news.flatMap(n => n.tags || [])));
         </div>
     )}
 
-    <!-- News List -->
+    <!-- Table header (desktop only) -->
+    <div
+        class="hidden md:grid grid-cols-[120px_120px_1fr] gap-4 px-4 py-2 font-mono text-xs font-bold border-b border-muted text-primary uppercase"
+    >
+        <div>Date</div>
+        <div>Source</div>
+        <div>Title & Summary</div>
+    </div>
+
+    <!-- News list -->
     <div id="news-container" class="flex flex-col">
         {
             news.length === 0 ? (
@@ -63,53 +72,33 @@ const allTags = Array.from(new Set(news.flatMap(n => n.tags || [])));
             ) : (
                 news.map((item) => {
                     const tagsLower = (item.tags || []).map(t => t.toLowerCase()).join(' ');
-                    return (
-                        <div
-                            class="news-row border-b border-dashed border-muted px-4 py-4 md:py-3 transition-colors duration-0"
-                            data-tags={tagsLower}
-                        >
-                            <div class="flex flex-col gap-2">
-                                <div class="flex flex-wrap items-center gap-3 font-mono text-xs">
-                                    <span class="text-accent">{formatDate(item.publishedAt)}</span>
-                                    <span class="text-muted">|</span>
-                                    <span class="text-muted">{item.sourceName}</span>
-                                </div>
+                    const searchHaystack = `${item.title} ${item.summary} ${item.sourceName} ${tagsLower}`.toLowerCase();
 
-                                <div class="flex flex-col md:flex-row md:items-start gap-3">
-                                    {item.coverImage && (
-                                        <img
-                                            src={item.coverImage}
-                                            alt={item.title}
-                                            class="w-full md:w-32 h-20 object-cover border border-muted shrink-0 grayscale contrast-125 brightness-90"
-                                            loading="lazy"
-                                        />
-                                    )}
-                                    <div class="flex flex-col gap-1">
-                                        <h2 class="font-mono text-base font-bold text-text">
-                                            {item.title}
-                                        </h2>
-                                        <p class="font-sans text-xs text-accent leading-relaxed">
-                                            {item.summary}
-                                        </p>
-                                        <div class="flex flex-wrap items-center gap-2 mt-1">
-                                            {(item.tags || []).map((tag) => (
-                                                <span class="font-mono text-[10px] text-muted border border-muted px-1.5 py-0.5">
-                                                    #{tag}
-                                                </span>
-                                            ))}
-                                            <a
-                                                href={item.sourceUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                class="font-mono text-[10px] text-primary hover:underline cursor-[crosshair] ml-auto"
-                                            >
-                                                [source]
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
+                    return (
+                        <a
+                            id={`news-${item.id}`}
+                            href={`/news/${item.id}`}
+                            data-tags={tagsLower}
+                            data-search={searchHaystack}
+                            class="news-row terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
+                        >
+                            <div class="font-mono text-xs text-accent self-start md:self-center">
+                                {formatDate(item.publishedAt)}
                             </div>
-                        </div>
+                            <div class="font-mono text-xs text-muted self-start md:self-center font-bold tracking-wider">
+                                [{item.sourceName}]
+                            </div>
+                            <div class="flex flex-col gap-1 self-center">
+                                <div class="font-sans text-base font-medium text-text title-text group-hover:text-primary transition-colors duration-0">
+                                    {item.title}
+                                </div>
+                                {item.summary && (
+                                    <p class="font-sans text-xs text-accent line-clamp-1">
+                                        {item.summary}
+                                    </p>
+                                )}
+                            </div>
+                        </a>
                     );
                 })
             )

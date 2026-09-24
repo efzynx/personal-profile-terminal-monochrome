@@ -32,7 +32,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
 
   try {
     const body = await request.json();
-    const { id, title, summary, sourceUrl, sourceName, tags, coverImage, publishedAt } = body;
+    const { id, title, summary, content, sourceUrl, sourceName, tags, coverImage, publishedAt } = body;
 
     if (!title || !summary || !sourceUrl || !sourceName) {
       return new Response(
@@ -45,6 +45,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       id,
       title,
       summary,
+      content: content || '',
       sourceUrl,
       sourceName,
       tags: tags || [],

@@ -6,6 +6,7 @@ export interface NewsItem {
   id: string;
   title: string;
   summary: string;
+  content: string;
   sourceUrl: string;
   sourceName: string;
   tags: string[];
@@ -62,6 +63,7 @@ export async function listNews(): Promise<NewsItem[]> {
           id: item.id,
           title: item.title,
           summary: item.summary,
+          content: item.content || '',
           sourceUrl: item.source_url || item.sourceUrl,
           sourceName: item.source_name || item.sourceName,
           tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
@@ -90,6 +92,7 @@ export async function getNewsItem(id: string): Promise<NewsItem | null> {
           id: data.id,
           title: data.title,
           summary: data.summary,
+          content: data.content || '',
           sourceUrl: data.source_url || data.sourceUrl,
           sourceName: data.source_name || data.sourceName,
           tags: typeof data.tags === 'string' ? JSON.parse(data.tags) : (data.tags || []),
@@ -118,6 +121,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
         id,
         title: item.title,
         summary: item.summary,
+        content: item.content || '',
         source_url: item.sourceUrl,
         source_name: item.sourceName,
         tags: item.tags || [],
@@ -141,6 +145,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
       id,
       title: item.title,
       summary: item.summary,
+      content: item.content || '',
       sourceUrl: item.sourceUrl,
       sourceName: item.sourceName,
       tags: item.tags || [],
