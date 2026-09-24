@@ -205,7 +205,7 @@ try {
         <!-- Add/Edit News Form (hidden by default) -->
         <div id="news-form-container" class="hidden border border-muted bg-surface p-6 flex flex-col gap-4">
             <div class="flex items-center justify-between">
-                <h2 class="font-mono text-sm font-bold text-primary uppercase">Add News Item</h2>
+                <h2 id="form-heading" class="font-mono text-sm font-bold text-primary uppercase">Add News Item</h2>
                 <button type="button" id="btn-cancel-form" class="font-mono text-xs text-accent hover:text-primary cursor-[crosshair]">[ CANCEL ]</button>
             </div>
 
@@ -311,6 +311,21 @@ try {
                                 >
                                     [ View ]
                                 </a>
+                                <button
+                                    type="button"
+                                    data-edit-id={item.id}
+                                    data-edit-title={item.title}
+                                    data-edit-summary={item.summary}
+                                    data-edit-content={item.content || ''}
+                                    data-edit-source-url={item.sourceUrl}
+                                    data-edit-source-name={item.sourceName}
+                                    data-edit-tags={(item.tags || []).join(', ')}
+                                    data-edit-cover={item.coverImage || ''}
+                                    data-edit-draft={item.draft ? 'true' : 'false'}
+                                    class="text-primary hover:bg-surface border border-primary px-3 py-1.5 font-bold transition-colors cursor-[crosshair]"
+                                >
+                                    [ Edit ]
+                                </button>
                                 <a
                                     href={item.sourceUrl}
                                     target="_blank"
@@ -355,6 +370,7 @@ try {
             var formStatus = document.getElementById('form-status');
             var summaryField = document.getElementById('news-summary');
             var summaryCounter = document.getElementById('summary-counter');
+            var formHeading = document.getElementById('form-heading');
 
             // Summary character counter
             summaryField.addEventListener('input', function () {
@@ -367,10 +383,11 @@ try {
                 }
             });
 
-            // Show form
+            // Show form (Add mode)
             btnAdd.addEventListener('click', function () {
                 formContainer.classList.remove('hidden');
                 btnAdd.classList.add('hidden');
+                formHeading.textContent = 'Add News Item';
                 document.getElementById('news-id').value = '';
                 document.getElementById('news-title').value = '';
                 document.getElementById('news-summary').value = '';
@@ -484,6 +501,35 @@ try {
                         btn.disabled = false;
                         btn.textContent = '[ Delete ]';
                     }
+                });
+            });
+
+            // Edit
+            var editButtons = document.querySelectorAll('[data-edit-id]');
+            editButtons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    formContainer.classList.remove('hidden');
+                    btnAdd.classList.add('hidden');
+                    formHeading.textContent = 'Edit News Item';
+                    formStatus.textContent = '';
+
+                    document.getElementById('news-id').value = btn.getAttribute('data-edit-id') || '';
+                    document.getElementById('news-title').value = btn.getAttribute('data-edit-title') || '';
+                    document.getElementById('news-summary').value = btn.getAttribute('data-edit-summary') || '';
+                    document.getElementById('news-content').value = btn.getAttribute('data-edit-content') || '';
+                    document.getElementById('news-source-url').value = btn.getAttribute('data-edit-source-url') || '';
+                    document.getElementById('news-source-name').value = btn.getAttribute('data-edit-source-name') || '';
+                    document.getElementById('news-tags').value = btn.getAttribute('data-edit-tags') || '';
+                    document.getElementById('news-cover').value = btn.getAttribute('data-edit-cover') || '';
+                    document.getElementById('news-draft').checked = btn.getAttribute('data-edit-draft') === 'true';
+
+                    // Update summary counter
+                    var len = (btn.getAttribute('data-edit-summary') || '').length;
+                    summaryCounter.textContent = len + '/200';
+                    summaryCounter.className = len > 180 ? 'font-mono text-[10px] text-red-400' : 'font-mono text-[10px] text-muted';
+
+                    // Scroll to form
+                    formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
         });
