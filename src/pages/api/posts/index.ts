@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { listPosts, savePost } from '../../../lib/cms';
-import sanitizeHtml from 'sanitize-html';
+import { sanitizeHtml } from '../../../lib/sanitize';
 
 export const GET: APIRoute = async ({ cookies }) => {
   // Auth sudah divalidasi di middleware (session cookie ATAU API key)

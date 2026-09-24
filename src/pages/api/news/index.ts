@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { validateApiKey } from '../../../lib/apikey';
 import { listNews, saveNewsItem } from '../../../lib/news';
-import sanitizeHtml from 'sanitize-html';
+import { sanitizeHtml } from '../../../lib/sanitize';
 
 export const GET: APIRoute = async ({ cookies, request }) => {
   const session = getSession(cookies);

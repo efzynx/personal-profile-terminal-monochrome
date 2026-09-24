@@ -22,6 +22,9 @@ export default defineConfig({
     checkOrigin: false, // Dihandle manual di middleware (agar API key request tidak kena CSRF block)
   },
   vite: {
+    ssr: {
+      noExternal: ['@supabase/supabase-js'],
+    },
     server: {
       allowedHosts: allowedHosts,
     },
