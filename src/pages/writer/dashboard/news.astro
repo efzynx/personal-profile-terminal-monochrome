@@ -143,12 +143,6 @@ try {
                 </div>
 
                 <a
-                    href="/"
-                    class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-3 py-1 no-underline transition-colors duration-0 cursor-[crosshair]"
-                >
-                    cd ~/
-                </a>
-                <a
                     href="/api/auth/logout"
                     class="font-mono text-xs text-red-400 hover:text-red-300 border border-red-500/40 hover:border-red-400 px-3 py-1 no-underline transition-colors duration-0 cursor-[crosshair]"
                 >
@@ -337,6 +331,17 @@ try {
                 </div>
             )}
         </main>
+
+        <!-- Footer Nav -->
+        <div class="border-t border-muted pt-4 mt-4 flex items-center justify-between font-mono text-xs text-accent">
+            <a
+                href="/"
+                class="hover:text-primary transition-colors duration-0 cursor-[crosshair] no-underline"
+            >
+                &lt;-- cd ~/
+            </a>
+            <span class="text-muted">admin_panel</span>
+        </div>
     </div>
 
     <!-- Client-Side Scripts -->
