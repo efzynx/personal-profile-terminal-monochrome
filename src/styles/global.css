@@ -43,25 +43,29 @@ html.dark {
   --color-primary: #f0f0f0;
 }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--color-background);
-  color: var(--color-text);
-  font-family: "IBM Plex Sans", sans-serif;
-}
+@layer base {
+  *,
+  ::after,
+  ::before {
+    box-sizing: border-box;
+  }
 
-* {
-  box-sizing: border-box;
-}
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-img {
-  display: block;
-  max-width: 100%;
+  img {
+    display: block;
+    max-width: 100%;
+  }
 }

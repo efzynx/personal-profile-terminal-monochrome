@@ -2,6 +2,7 @@
 import '../../../styles/global.css';
 import { getSession } from '../../../lib/auth';
 import { getPost, getProfileData } from '../../../lib/cms';
+import TerminalModal from '../../../components/TerminalModal.astro';
 
 const session = getSession(Astro.cookies);
 if (!session) {
@@ -102,7 +103,7 @@ const defaultContent = existingPost ? existingPost.content : '';
         }
     </style>
 </head>
-<body class="min-h-screen bg-background text-text flex justify-center py-8 px-4 md:px-8 lg:px-12">
+<body class="min-h-screen bg-background text-text flex justify-center pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16">
     <div class="w-full max-w-7xl flex flex-col gap-6">
 
         <!-- Nav -->
@@ -345,13 +346,16 @@ const defaultContent = existingPost ? existingPost.content : '';
             };
 
             document.querySelectorAll('.btn-template').forEach(function (btn) {
-                btn.addEventListener('click', function () {
+                btn.addEventListener('click', async function () {
                     var templateType = btn.getAttribute('data-template');
                     var templateContent = templates[templateType];
                     if (!templateContent) return;
 
                     if (contentTextarea.value.trim().length > 0) {
-                        if (!confirm('Apakah Anda yakin ingin menimpa isi editor dengan template ini?')) {
+                        var confirmed = window.terminalConfirm
+                            ? await window.terminalConfirm('Apakah Anda yakin ingin menimpa isi editor dengan template ini?', 'KONFIRMASI TEMPLATE')
+                            : confirm('Apakah Anda yakin ingin menimpa isi editor dengan template ini?');
+                        if (!confirmed) {
                             return;
                         }
                     }
@@ -385,12 +389,25 @@ const defaultContent = existingPost ? existingPost.content : '';
                     if (res.ok && data.url) {
                         var imgMarkdown = '\n![' + file.name + '](' + data.url + ')\n';
                         contentTextarea.value += imgMarkdown;
-                        alert('Gambar berhasil diunggah! Syntax markdown telah disisipkan ke editor.');
+                        if (window.terminalAlert) {
+                            await window.terminalAlert('Gambar berhasil diunggah! Syntax markdown telah disisipkan ke editor.', 'UPLOAD SUKSES');
+                        } else {
+                            alert('Gambar berhasil diunggah! Syntax markdown telah disisipkan ke editor.');
+                        }
                     } else {
-                        alert('Gagal mengunggah gambar: ' + (data.error || 'Unknown error'));
+                        var uploadErr = 'Gagal mengunggah gambar: ' + (data.error || 'Unknown error');
+                        if (window.terminalAlert) {
+                            await window.terminalAlert(uploadErr, 'UPLOAD GAGAL');
+                        } else {
+                            alert(uploadErr);
+                        }
                     }
                 } catch (err) {
-                    alert('Error koneksi saat upload gambar.');
+                    if (window.terminalAlert) {
+                        await window.terminalAlert('Terjadi kesalahan koneksi saat mengunggah gambar.', 'KONEKSI ERROR');
+                    } else {
+                        alert('Error koneksi saat upload gambar.');
+                    }
                 } finally {
                     btnUploadTrigger.disabled = false;
                     btnUploadTrigger.innerText = '[ UPLOAD IMAGE ]';
@@ -524,5 +541,6 @@ const defaultContent = existingPost ? existingPost.content : '';
             });
         })();
     </script>
+    <TerminalModal />
 </body>
 </html>

@@ -2,6 +2,7 @@
 import '../../styles/global.css';
 import { getSession } from '../../lib/auth';
 import { getProfileData } from '../../lib/cms';
+import TerminalModal from '../../components/TerminalModal.astro';
 
 const session = getSession(Astro.cookies);
 if (session) {
@@ -20,13 +21,22 @@ try {
 const isSvgFavicon = activeFavicon.endsWith('.svg');
 
 const error = Astro.url.searchParams.get('error');
+const targetUser = Astro.url.searchParams.get('user');
 let errorMessage = '';
+let errorTitle = 'AUTHENTICATION ERROR';
+
 if (error === 'unauthorized_user') {
-  errorMessage = 'ACCESS DENIED: Username GitHub kamu tidak memiliki hak akses sebagai penulis.';
+  errorTitle = 'ACCESS DENIED';
+  errorMessage = `Akun GitHub ${targetUser ? '@' + targetUser + ' ' : ''}tidak terdaftar dalam whitelist admin.\n\nSilakan gunakan akun GitHub yang memiliki hak akses administrator.`;
+} else if (error === 'csrf_failed') {
+  errorTitle = 'SECURITY WARNING';
+  errorMessage = 'Validasi CSRF state gagal atau sesi login telah kedaluwarsa.\n\nSilakan ulangi proses login kembali.';
 } else if (error === 'invalid_token' || error === 'missing_code') {
-  errorMessage = 'AUTHENTICATION FAILED: Token OAuth tidak valid atau telah kedaluwarsa.';
+  errorTitle = 'AUTH FAILED';
+  errorMessage = 'Token otorisasi OAuth tidak valid atau tidak ditemukan.';
 } else if (error === 'server_error') {
-  errorMessage = 'SYSTEM ERROR: Gagal menghubungi server autentikasi GitHub.';
+  errorTitle = 'SYSTEM ERROR';
+  errorMessage = 'Terjadi kesalahan sistem saat menghubungi server autentikasi GitHub.';
 }
 ---
 
@@ -99,7 +109,7 @@ if (error === 'unauthorized_user') {
         }
     </style>
 </head>
-<body class="min-h-screen bg-background text-text flex flex-col py-10 px-4 md:px-8 lg:px-12">
+<body class="min-h-screen bg-background text-text flex flex-col pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16">
     <!-- Top Theme Selector Bar -->
     <div class="w-full max-w-7xl mx-auto flex justify-end mb-6">
         <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
@@ -213,8 +223,20 @@ if (error === 'unauthorized_user') {
                         }
                     }
                 });
+
+                // Auto-show Terminal Modal if error exists in URL
+                var errMessage = {JSON.stringify(errorMessage)};
+                var errTitle = {JSON.stringify(errorTitle)};
+                if (errMessage && window.terminalAlert) {
+                    window.terminalAlert(errMessage, errTitle).then(function () {
+                        // Bersihkan query param error dari address bar tanpa reload
+                        var cleanUrl = window.location.pathname;
+                        window.history.replaceState({}, document.title, cleanUrl);
+                    });
+                }
             });
         })();
     </script>
+    <TerminalModal />
 </body>
 </html>
