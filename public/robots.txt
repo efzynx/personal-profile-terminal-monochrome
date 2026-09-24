@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /writer
+Disallow: /writer/
+Disallow: /api/
+
+Sitemap: https://www.efzyn.my.id/sitemap.xml
