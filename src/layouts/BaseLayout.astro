@@ -50,7 +50,7 @@ import SEO from "../components/SEO.astro";
 
 const profileData = await getProfileData();
 const activeFavicon = profileData.faviconUrl || "/favicon.svg";
-const isSvgFavicon = activeFavicon.endsWith('.svg');
+const activeAvatar = profileData.avatarUrl || "/saya.avif";
 ---
 
 
@@ -74,6 +74,8 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
             articleAuthor={articleAuthor}
             articleTags={articleTags}
             schemaJsonLd={schemaJsonLd}
+            faviconUrl={activeFavicon}
+            avatarUrl={activeAvatar}
         />
 
         <!-- Early Theme Initialization Script (Anti-FOUC) -->
@@ -90,15 +92,6 @@ const isSvgFavicon = activeFavicon.endsWith('.svg');
                 }
             })();
         </script>
-
-        <!-- Favicon -->
-        {isSvgFavicon ? (
-            <link rel="icon" type="image/svg+xml" href={activeFavicon} />
-        ) : (
-            <link rel="icon" href={activeFavicon} />
-        )}
-        <link rel="shortcut icon" href={activeFavicon} />
-
 
         <!-- Google Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
