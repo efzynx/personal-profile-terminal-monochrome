@@ -2,7 +2,7 @@
 export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getNewsItem } from "../../lib/news";
-import { formatDate, calculateReadTime } from "../../lib/utils";
+import { formatDate, calculateReadTime, extractFirstImage } from "../../lib/utils";
 import { sanitizeArticleContent } from "../../lib/sanitize";
 import { Marked } from "marked";
 
@@ -80,9 +80,25 @@ const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.inc
     : 'https://www.efzyn.my.id';
 
 const pageUrl = `${siteBase}/news/${item.id}`;
-const coverImg = item.coverImage
-    ? (item.coverImage.startsWith('http') ? item.coverImage : `${siteBase}${item.coverImage.startsWith('/') ? '' : '/'}${item.coverImage}`)
-    : `${siteBase}/saya.avif`;
+
+// 1. Cek field cover image eksplisit
+const explicitCover =
+    item.coverImage ||
+    (item as any).cover_image ||
+    (item as any).thumbnail ||
+    (item as any).image;
+
+// 2. Ekstrak gambar pertama dari konten artikel/markdown jika tidak ada cover eksplisit
+const contentImage = extractFirstImage(rawContent);
+
+// 3. Fallback ke banner situs jika tidak ada gambar sama sekali
+const resolvedImage = explicitCover || contentImage || '/banner.png';
+
+// URL absolut untuk Open Graph, Twitter Cards, dan Schema.org
+const fullOgImage =
+    resolvedImage.startsWith('http://') || resolvedImage.startsWith('https://')
+        ? resolvedImage
+        : `${siteBase}${resolvedImage.startsWith('/') ? '' : '/'}${resolvedImage}`;
 
 const newsArticleSchema = {
     "@context": "https://schema.org",
@@ -105,7 +121,7 @@ const newsArticleSchema = {
         "@type": "WebPage",
         "@id": pageUrl
     },
-    "image": coverImg
+    "image": fullOgImage
 };
 ---
 
@@ -116,7 +132,7 @@ const newsArticleSchema = {
     backHref="/news"
     backLabel="cd ~/news"
     ogType="article"
-    ogImage={item.coverImage}
+    ogImage={fullOgImage}
     articlePublishedTime={item.publishedAt}
     articleAuthor={item.sourceName}
     articleTags={item.tags}
@@ -153,10 +169,10 @@ const newsArticleSchema = {
     </header>
 
     <!-- Optional Cover Image -->
-    {item.coverImage && (
+    {explicitCover && (
         <div class="my-6 border border-muted bg-surface overflow-hidden">
             <img
-                src={item.coverImage}
+                src={explicitCover}
                 alt={item.title}
                 class="w-full max-h-[400px] object-cover"
                 loading="eager"

@@ -30,3 +30,18 @@ export function calculateReadTime(content: string): number {
   const wordCount = content?.split(/\s+/).length ?? 0;
   return Math.max(1, Math.ceil(wordCount / 200));
 }
+
+/**
+ * Extracts the first image URL from markdown or HTML content,
+ * or returns undefined if none found.
+ */
+export function extractFirstImage(content?: string): string | undefined {
+  if (!content || typeof content !== 'string') return undefined;
+  // Markdown: ![alt](url)
+  const mdMatch = content.match(/!\[.*?\]\(((?:https?:\/\/|\/)[^\s\)]+)\)/);
+  if (mdMatch && mdMatch[1]) return mdMatch[1];
+  // HTML: <img ... src="..." ...>
+  const htmlMatch = content.match(/<img[^>]+src=["']((?:https?:\/\/|\/)[^"']+)["']/i);
+  if (htmlMatch && htmlMatch[1]) return htmlMatch[1];
+  return undefined;
+}

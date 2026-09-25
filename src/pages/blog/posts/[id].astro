@@ -2,7 +2,7 @@
 export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getPost } from "../../../lib/cms";
-import { formatDate, calculateReadTime } from "../../../lib/utils";
+import { formatDate, calculateReadTime, extractFirstImage } from "../../../lib/utils";
 import { sanitizeArticleContent } from "../../../lib/sanitize";
 import { Marked } from "marked";
 
@@ -80,9 +80,27 @@ const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.inc
     : 'https://www.efzyn.my.id';
 
 const pageUrl = `${siteBase}/blog/posts/${post.slug}`;
-const coverImg = post.frontmatter.coverImage
-    ? (post.frontmatter.coverImage.startsWith('http') ? post.frontmatter.coverImage : `${siteBase}${post.frontmatter.coverImage.startsWith('/') ? '' : '/'}${post.frontmatter.coverImage}`)
-    : `${siteBase}/saya.avif`;
+
+// 1. Cek field cover image eksplisit
+const explicitCover =
+    post.frontmatter.coverImage ||
+    (post.frontmatter as any).cover_image ||
+    (post.frontmatter as any).thumbnail ||
+    (post.frontmatter as any).image ||
+    (post as any).coverImage ||
+    (post as any).cover_image;
+
+// 2. Ekstrak gambar pertama dari konten artikel/markdown jika tidak ada cover eksplisit
+const contentImage = extractFirstImage(rawContent);
+
+// 3. Fallback ke banner situs jika tidak ada gambar sama sekali
+const resolvedImage = explicitCover || contentImage || '/banner.png';
+
+// URL absolut untuk Open Graph, Twitter Cards, dan Schema.org
+const fullOgImage =
+    resolvedImage.startsWith('http://') || resolvedImage.startsWith('https://')
+        ? resolvedImage
+        : `${siteBase}${resolvedImage.startsWith('/') ? '' : '/'}${resolvedImage}`;
 
 const blogPostSchema = {
     "@context": "https://schema.org",
@@ -105,7 +123,7 @@ const blogPostSchema = {
         "@type": "WebPage",
         "@id": pageUrl
     },
-    "image": coverImg
+    "image": fullOgImage
 };
 ---
 
@@ -116,7 +134,7 @@ const blogPostSchema = {
     backHref="/blog"
     backLabel="cd ~/blog"
     ogType="article"
-    ogImage={post.frontmatter.coverImage}
+    ogImage={fullOgImage}
     articlePublishedTime={post.frontmatter.pubDate}
     articleAuthor="Ahmad Fauzan Adiman"
     articleTags={post.frontmatter.tags}
@@ -149,10 +167,10 @@ const blogPostSchema = {
     </header>
 
     <!-- Optional Cover Image -->
-    {post.frontmatter.coverImage && (
+    {explicitCover && (
         <div class="my-6 border border-muted bg-surface overflow-hidden">
             <img
-                src={post.frontmatter.coverImage}
+                src={explicitCover}
                 alt={post.frontmatter.title}
                 class="w-full max-h-[400px] object-cover"
                 loading="eager"

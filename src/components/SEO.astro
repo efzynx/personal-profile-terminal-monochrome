@@ -39,7 +39,7 @@ const defaultCanonical = pathname === '/'
 const canonicalURL = canonicalUrl || defaultCanonical;
 
 // Format absolute Open Graph image URL
-const rawImage = ogImage || '/saya.avif';
+const rawImage = ogImage || (ogType === 'article' || pathname.startsWith('/news') || pathname.startsWith('/blog') ? '/banner.png' : '/saya.avif');
 const fullOgImage = rawImage.startsWith('http://') || rawImage.startsWith('https://')
   ? rawImage
   : `${siteBase}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
