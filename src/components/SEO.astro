@@ -1,8 +1,10 @@
 ---
+import { getProfileData } from "../lib/cms";
+
 /**
  * SEO.astro
  * Komponen sentral untuk technical SEO: Canonical URL, Meta Robots,
- * Open Graph, Twitter Card, theme-color, dan Schema.org JSON-LD Structured Data.
+ * Open Graph, Twitter Card, theme-color, Dynamic Favicon, dan Schema.org JSON-LD.
  */
 interface Props {
   title: string;
@@ -14,6 +16,8 @@ interface Props {
   articleAuthor?: string;
   articleTags?: string[];
   schemaJsonLd?: Record<string, any> | Array<Record<string, any>>;
+  faviconUrl?: string;
+  avatarUrl?: string;
 }
 
 const {
@@ -26,6 +30,8 @@ const {
   articleAuthor = "Ahmad Fauzan Adiman",
   articleTags = [],
   schemaJsonLd,
+  faviconUrl,
+  avatarUrl,
 } = Astro.props;
 
 const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.includes('localhost')
@@ -38,8 +44,30 @@ const defaultCanonical = pathname === '/'
   : `${siteBase}${pathname.replace(/\/$/, '')}`;
 const canonicalURL = canonicalUrl || defaultCanonical;
 
-// Format absolute Open Graph image URL
-const rawImage = ogImage || (ogType === 'article' || pathname.startsWith('/news') || pathname.startsWith('/blog') ? '/banner.png' : '/saya.avif');
+// Ambil profileData jika avatarUrl atau faviconUrl belum disediakan
+const profile = (avatarUrl && faviconUrl) ? null : await getProfileData();
+const resolvedAvatar = avatarUrl || profile?.avatarUrl || '/saya.avif';
+const resolvedFavicon = faviconUrl || profile?.faviconUrl || '/favicon.svg';
+
+// Format absolute URLs
+const fullAvatarUrl = resolvedAvatar.startsWith('http://') || resolvedAvatar.startsWith('https://')
+  ? resolvedAvatar
+  : `${siteBase}${resolvedAvatar.startsWith('/') ? '' : '/'}${resolvedAvatar}`;
+
+const fullFaviconUrl = resolvedFavicon.startsWith('http://') || resolvedFavicon.startsWith('https://')
+  ? resolvedFavicon
+  : `${siteBase}${resolvedFavicon.startsWith('/') ? '' : '/'}${resolvedFavicon}`;
+
+const isSvgFavicon = resolvedFavicon.endsWith('.svg');
+
+// Format absolute Open Graph image URL dinamis:
+// Jika artikel atau katalog berita/blog tanpa cover spesifik -> gunakan banner /banner.png
+// Jika halaman utama / profil -> gunakan avatar aktif dari database/settings Supabase (fullAvatarUrl)
+const defaultDynamicImage = (ogType === 'article' || pathname.startsWith('/news') || pathname.startsWith('/blog'))
+  ? `${siteBase}/banner.png`
+  : fullAvatarUrl;
+
+const rawImage = ogImage || defaultDynamicImage;
 const fullOgImage = rawImage.startsWith('http://') || rawImage.startsWith('https://')
   ? rawImage
   : `${siteBase}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
@@ -53,11 +81,11 @@ const defaultPersonSchema = {
   "@context": "https://schema.org",
   "@type": "Person",
   "@id": `${siteBase}/#person`,
-  "name": "Ahmad Fauzan Adiman",
+  "name": profile?.name || "Ahmad Fauzan Adiman",
   "url": siteBase,
-  "jobTitle": "Backend Developer & DevOps Enthusiast",
-  "image": `${siteBase}/saya.avif`,
-  "description": "Backend Developer & DevOps Enthusiast. Mahasiswa tingkat akhir Univ. Nurul Jadid.",
+  "jobTitle": profile?.title || "Backend Developer & DevOps Enthusiast",
+  "image": fullAvatarUrl,
+  "description": profile?.bio || "Backend Developer & DevOps Enthusiast. Mahasiswa tingkat akhir Univ. Nurul Jadid.",
   "sameAs": [
     "https://github.com/efzynx",
     "https://linkedin.com/in/efzyn",
@@ -98,6 +126,15 @@ if (schemaJsonLd) {
 
 <!-- Mobile Theme Color -->
 <meta name="theme-color" content="#0a0a0a" />
+
+<!-- Dynamic Favicon from Supabase / Fallback -->
+{isSvgFavicon ? (
+  <link rel="icon" type="image/svg+xml" href={fullFaviconUrl} />
+) : (
+  <link rel="icon" href={fullFaviconUrl} />
+)}
+<link rel="shortcut icon" href={fullFaviconUrl} />
+<link rel="apple-touch-icon" href={fullFaviconUrl} />
 
 <!-- Open Graph Meta Tags -->
 <meta property="og:site_name" content="Ahmad Fauzan Adiman — Terminal Monochrome" />
