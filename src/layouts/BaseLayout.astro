@@ -25,6 +25,7 @@ interface Props {
     articleAuthor?: string;
     articleTags?: string[];
     schemaJsonLd?: Record<string, any> | Array<Record<string, any>>;
+    variant?: 'default' | 'article';
 }
 
 const {
@@ -41,6 +42,7 @@ const {
     articleAuthor,
     articleTags,
     schemaJsonLd,
+    variant = 'default',
 } = Astro.props;
 
 import '../styles/global.css';
@@ -134,65 +136,120 @@ const activeAvatar = profileData.avatarUrl || "/saya.avif";
         </style>
     </head>
     <body
-        class="min-h-screen bg-background text-text flex justify-center pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16"
+        class:list={[
+            "min-h-screen bg-background text-text flex justify-center pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16",
+            variant === "article" ? "pt-4 sm:pt-6 md:pt-8" : "pt-8 sm:pt-12 md:pt-16 lg:pt-20",
+        ]}
     >
-        <div class="w-full max-w-7xl flex flex-col gap-8">
+        <div
+            class:list={[
+                "w-full max-w-7xl flex flex-col",
+                variant === "article" ? "gap-4 sm:gap-6" : "gap-8",
+            ]}
+        >
             <!-- Top Nav / Breadcrumb & Theme Selector -->
-            <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm">
-                <div class="flex items-center gap-2 text-accent">
-                    <span class="material-symbols-outlined text-[16px] text-primary"
-                        >terminal</span
-                    >
+            {variant === 'article' ? (
+                <nav class="flex items-center justify-between font-mono text-xs">
                     <a
-                        href="/"
-                        class="hover:text-primary transition-colors duration-0 cursor-[crosshair]"
-                        title="Return to Gateway Home">{profileData.terminalPrompt || 'fauzan@tux'}:~$</a
+                        href={backHref || "/blog"}
+                        class="inline-flex items-center gap-1.5 font-mono text-xs text-muted hover:text-primary transition-colors duration-0 cursor-[crosshair]"
                     >
+                        &lt;- {backLabel || 'cd ..'}
+                    </a>
+                </nav>
+            ) : (
+                <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm">
+                    <div class="flex items-center gap-2 text-accent">
+                        <span class="material-symbols-outlined text-[16px] text-primary"
+                            >terminal</span
+                        >
+                        <a
+                            href="/"
+                            class="hover:text-primary transition-colors duration-0 cursor-[crosshair]"
+                            title="Return to Gateway Home">{profileData.terminalPrompt || 'fauzan@tux'}:~$</a
+                        >
 
-                    <span class="text-primary">{breadcrumb}</span>
-                </div>
+                        <span class="text-primary">{breadcrumb}</span>
+                    </div>
 
-                <!-- Theme Selector -->
-                <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
-                    <span class="text-muted mr-1 hidden sm:inline">&gt; mode:</span>
-                    <button
-                        type="button"
-                        data-theme-btn="system"
-                        class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
-                        title="System theme"
-                    >sys</button>
-                    <span class="text-muted">|</span>
-                    <button
-                        type="button"
-                        data-theme-btn="dark"
-                        class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
-                        title="Dark theme"
-                    >dark</button>
-                    <span class="text-muted">|</span>
-                    <button
-                        type="button"
-                        data-theme-btn="light"
-                        class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
-                        title="Light theme"
-                    >light</button>
-                </div>
-            </nav>
+                    <!-- Theme Selector -->
+                    <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
+                        <span class="text-muted mr-1 hidden sm:inline">&gt; mode:</span>
+                        <button
+                            type="button"
+                            data-theme-btn="system"
+                            class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                            title="System theme"
+                        >sys</button>
+                        <span class="text-muted">|</span>
+                        <button
+                            type="button"
+                            data-theme-btn="dark"
+                            class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                            title="Dark theme"
+                        >dark</button>
+                        <span class="text-muted">|</span>
+                        <button
+                            type="button"
+                            data-theme-btn="light"
+                            class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                            title="Light theme"
+                        >light</button>
+                    </div>
+                </nav>
+            )}
 
             <!-- Main content -->
             <main class="flex flex-col gap-4">
                 <slot />
             </main>
 
-            <!-- Back link (cd ..) — always at the bottom -->
-            {backHref && (
-                <div class="font-mono text-sm border-t border-dashed border-muted pt-4">
+            <!-- Back link & Footer -->
+            {variant === 'article' ? (
+                <footer class="font-mono text-xs text-muted border-t border-dashed border-muted pt-4 flex flex-wrap items-center justify-between gap-4">
                     <a
-                        href={backHref}
+                        href={backHref || "/blog"}
                         class="text-accent hover:text-primary transition-colors duration-0 cursor-[crosshair]"
                     >
-                        &lt;- {backLabel}
+                        &lt;- {backLabel || 'cd ..'}
                     </a>
-                </div>
+
+                    <!-- Theme Selector -->
+                    <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
+                        <span class="text-muted mr-1 hidden sm:inline">&gt; mode:</span>
+                        <button
+                            type="button"
+                            data-theme-btn="system"
+                            class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                            title="System theme"
+                        >sys</button>
+                        <span class="text-muted">|</span>
+                        <button
+                            type="button"
+                            data-theme-btn="dark"
+                            class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                            title="Dark theme"
+                        >dark</button>
+                        <span class="text-muted">|</span>
+                        <button
+                            type="button"
+                            data-theme-btn="light"
+                            class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1"
+                            title="Light theme"
+                        >light</button>
+                    </div>
+                </footer>
+            ) : (
+                backHref && (
+                    <div class="font-mono text-sm border-t border-dashed border-muted pt-4">
+                        <a
+                            href={backHref}
+                            class="text-accent hover:text-primary transition-colors duration-0 cursor-[crosshair]"
+                        >
+                            &lt;- {backLabel}
+                        </a>
+                    </div>
+                )
             )}
 
             <!-- Optional pagination footer -->
