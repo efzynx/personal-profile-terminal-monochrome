@@ -3,7 +3,7 @@ export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { listPublishedNews } from "../../lib/news";
 import { getProfileData } from "../../lib/cms";
-import { formatDate } from "../../lib/utils";
+import { formatDate, extractFirstImage } from "../../lib/utils";
 
 const profileData = await getProfileData();
 const news = await listPublishedNews();
@@ -124,6 +124,13 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
                     const dateFormatted = formatDate(item.publishedAt);
                     const tagsLower = (item.tags || []).map(t => t.toLowerCase().trim()).filter(Boolean).join(' ');
                     const searchHaystack = `${item.title} ${item.summary} ${item.sourceName} ${tagsLower}`.toLowerCase();
+                    const explicitCover =
+                        item.coverImage ||
+                        (item as any).cover_image ||
+                        (item as any).thumbnail ||
+                        (item as any).image;
+                    const contentImg = extractFirstImage(item.content);
+                    const coverThumbnail = explicitCover || contentImg;
 
                     return (
                         <a
@@ -140,15 +147,27 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
                             <div class="font-mono text-xs text-muted self-start md:self-center font-bold tracking-wider">
                                 [{item.sourceName}]
                             </div>
-                            <div class="flex flex-col gap-1 self-center">
-                                <div class="font-sans text-base font-medium text-text title-text group-hover:text-primary transition-colors duration-0">
-                                    {item.title}
-                                </div>
-                                {item.summary && (
-                                    <p class="font-sans text-xs text-accent line-clamp-1">
-                                        {item.summary}
-                                    </p>
+                            <div class="flex items-center gap-3.5 self-center min-w-0">
+                                {coverThumbnail && (
+                                    <div class="w-16 h-12 md:w-20 md:h-14 shrink-0 border border-muted overflow-hidden bg-background">
+                                        <img
+                                            src={coverThumbnail}
+                                            alt={item.title}
+                                            class="w-full h-full object-cover grayscale contrast-125 brightness-90 group-hover:grayscale-0 transition-all duration-200"
+                                            loading="lazy"
+                                        />
+                                    </div>
                                 )}
+                                <div class="flex flex-col gap-1 min-w-0">
+                                    <div class="font-sans text-base font-medium text-text title-text group-hover:text-primary transition-colors duration-0 line-clamp-2 md:line-clamp-1">
+                                        {item.title}
+                                    </div>
+                                    {item.summary && (
+                                        <p class="font-sans text-xs text-accent line-clamp-1">
+                                            {item.summary}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </a>
                     );
