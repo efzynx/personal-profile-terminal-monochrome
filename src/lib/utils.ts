@@ -45,3 +45,30 @@ export function extractFirstImage(content?: string): string | undefined {
   if (htmlMatch && htmlMatch[1]) return htmlMatch[1];
   return undefined;
 }
+
+/**
+ * Checks if an image URL is safe and valid to be used as Open Graph image (social preview).
+ * Rejects domains known to block social crawlers (e.g. Wikimedia 403), data URLs, and SVGs.
+ */
+export function isSafeForOgImage(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim().toLowerCase();
+
+  // Reject data URLs and SVGs (WhatsApp/Facebook do not support SVG for og:image)
+  if (clean.startsWith('data:') || clean.endsWith('.svg') || clean.includes('.svg?')) {
+    return false;
+  }
+
+  // Reject domains known to block social crawlers (HTTP 403 Forbidden to facebookexternalhit/WhatsApp)
+  if (
+    clean.includes('wikimedia.org') ||
+    clean.includes('wikipedia.org') ||
+    clean.includes('shields.io') ||
+    clean.includes('badge.fury.io') ||
+    clean.includes('github.com/badges')
+  ) {
+    return false;
+  }
+
+  return true;
+}

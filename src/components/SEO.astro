@@ -72,6 +72,12 @@ const fullOgImage = rawImage.startsWith('http://') || rawImage.startsWith('https
   ? rawImage
   : `${siteBase}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
 
+const ogImageMime = fullOgImage.endsWith('.png')
+  ? 'image/png'
+  : fullOgImage.endsWith('.webp')
+    ? 'image/webp'
+    : 'image/jpeg';
+
 const fullTitle = title.includes('Ahmad Fauzan Adiman')
   ? title
   : `${title} — Ahmad Fauzan Adiman`;
@@ -144,6 +150,11 @@ if (schemaJsonLd) {
 <meta property="og:description" content={description} />
 <meta property="og:url" content={canonicalURL} />
 <meta property="og:image" content={fullOgImage} />
+<meta property="og:image:secure_url" content={fullOgImage} />
+<meta property="og:image:type" content={ogImageMime} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={fullTitle} />
 
 {ogType === 'article' && articlePublishedTime && (
   <meta property="article:published_time" content={articlePublishedTime} />
@@ -160,6 +171,7 @@ if (schemaJsonLd) {
 <meta name="twitter:title" content={fullTitle} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={fullOgImage} />
+<meta name="twitter:image:alt" content={fullTitle} />
 
 <!-- Structured Data (Schema.org JSON-LD) -->
 <script type="application/ld+json" is:inline set:html={JSON.stringify(finalSchema)} />
