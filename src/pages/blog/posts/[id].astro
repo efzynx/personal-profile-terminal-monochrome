@@ -2,7 +2,7 @@
 export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getPost } from "../../../lib/cms";
-import { formatDate, calculateReadTime, extractFirstImage } from "../../../lib/utils";
+import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage } from "../../../lib/utils";
 import { sanitizeArticleContent } from "../../../lib/sanitize";
 import { Marked } from "marked";
 
@@ -91,10 +91,11 @@ const explicitCover =
     (post as any).cover_image;
 
 // 2. Ekstrak gambar pertama dari konten artikel/markdown jika tidak ada cover eksplisit
-const contentImage = extractFirstImage(rawContent);
+const rawContentImage = extractFirstImage(rawContent);
+const safeContentImage = isSafeForOgImage(rawContentImage) ? rawContentImage : undefined;
 
-// 3. Fallback ke banner situs jika tidak ada gambar sama sekali
-const resolvedImage = explicitCover || contentImage || '/banner.png';
+// 3. Fallback ke banner situs jika tidak ada gambar sama sekali atau gambar konten tidak aman
+const resolvedImage = explicitCover || safeContentImage || '/banner.png';
 
 // URL absolut untuk Open Graph, Twitter Cards, dan Schema.org
 const fullOgImage =
@@ -167,10 +168,10 @@ const blogPostSchema = {
     </header>
 
     <!-- Optional Cover Image -->
-    {explicitCover && (
+    {(explicitCover || rawContentImage) && (
         <div class="my-6 border border-muted bg-surface overflow-hidden">
             <img
-                src={explicitCover}
+                src={explicitCover || rawContentImage}
                 alt={post.frontmatter.title}
                 class="w-full max-h-[400px] object-cover"
                 loading="eager"
