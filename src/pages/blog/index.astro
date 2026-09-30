@@ -2,7 +2,7 @@
 export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { listPosts, getProfileData } from "../../lib/cms";
-import { formatDate } from "../../lib/utils";
+import { formatDate, extractFirstImage } from "../../lib/utils";
 
 const profileData = await getProfileData();
 const posts = await listPosts();
@@ -135,6 +135,13 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
                     const catLower = (post.frontmatter.category || 'general').toLowerCase();
                     const tagsLower = (post.frontmatter.tags || []).map((t: string) => t.toLowerCase().trim()).filter(Boolean).join(' ');
                     const searchHaystack = `${post.frontmatter.title} ${post.frontmatter.description || ''} ${catLower} ${tagsLower}`.toLowerCase();
+                    const explicitCover =
+                        post.frontmatter.coverImage ||
+                        (post.frontmatter as any).cover_image ||
+                        (post.frontmatter as any).thumbnail ||
+                        (post.frontmatter as any).image;
+                    const contentImg = extractFirstImage(post.content);
+                    const coverThumbnail = explicitCover || contentImg;
                     
                     return (
                         <a
@@ -151,15 +158,27 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
                             <div class="font-mono text-xs text-muted self-start md:self-center font-bold tracking-wider">
                                 [{post.frontmatter.category || 'General'}]
                             </div>
-                            <div class="flex flex-col gap-1 self-center">
-                                <div class="font-sans text-base font-medium text-text title-text group-hover:text-primary transition-colors duration-0">
-                                    {post.frontmatter.title}
-                                </div>
-                                {post.frontmatter.description && (
-                                    <p class="font-sans text-xs text-accent line-clamp-1">
-                                        {post.frontmatter.description}
-                                    </p>
+                            <div class="flex items-center gap-3.5 self-center min-w-0">
+                                {coverThumbnail && (
+                                    <div class="w-16 h-12 md:w-20 md:h-14 shrink-0 border border-muted overflow-hidden bg-background">
+                                        <img
+                                            src={coverThumbnail}
+                                            alt={post.frontmatter.title}
+                                            class="w-full h-full object-cover grayscale contrast-125 brightness-90 group-hover:grayscale-0 transition-all duration-200"
+                                            loading="lazy"
+                                        />
+                                    </div>
                                 )}
+                                <div class="flex flex-col gap-1 min-w-0">
+                                    <div class="font-sans text-base font-medium text-text title-text group-hover:text-primary transition-colors duration-0 line-clamp-2 md:line-clamp-1">
+                                        {post.frontmatter.title}
+                                    </div>
+                                    {post.frontmatter.description && (
+                                        <p class="font-sans text-xs text-accent line-clamp-1">
+                                            {post.frontmatter.description}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </a>
                     );
