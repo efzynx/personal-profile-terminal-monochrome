@@ -1,0 +1,265 @@
+---
+/**
+ * ThemeToggle.astro — Single Interactive Theme Toggle Button
+ * Cycles cyclically: system -> dark -> light -> system
+ * Terminal-aesthetic monochrome styling with smooth transitions.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className = "" } = Astro.props;
+---
+
+<button
+  type="button"
+  class:list={[
+    "theme-toggle-btn group inline-flex items-center gap-1.5 font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary bg-transparent hover:bg-surface px-2 py-1 select-none transition-colors duration-0 cursor-[crosshair]",
+    className,
+  ]}
+  title="Ganti tema tampilan (system -> dark -> light)"
+  aria-label="Ganti tema tampilan"
+  data-theme-current="system"
+>
+  <span class="text-muted hidden sm:inline select-none group-hover:text-accent">&gt; mode:</span>
+  <span class="theme-toggle-icon inline-flex items-center justify-center w-3.5 h-3.5 shrink-0 text-accent group-hover:text-primary transition-colors duration-0">
+    <!-- Desktop / System Icon -->
+    <svg
+      data-theme-icon="system"
+      class="w-3.5 h-3.5 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2" y="3" width="20" height="14" rx="0"></rect>
+      <line x1="8" y1="21" x2="16" y2="21"></line>
+      <line x1="12" y1="17" x2="12" y2="21"></line>
+    </svg>
+
+    <!-- Moon / Dark Icon -->
+    <svg
+      data-theme-icon="dark"
+      class="w-3.5 h-3.5 shrink-0 hidden"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+    </svg>
+
+    <!-- Sun / Light Icon -->
+    <svg
+      data-theme-icon="light"
+      class="w-3.5 h-3.5 shrink-0 hidden"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="4"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </span>
+  <span class="theme-toggle-text font-bold text-primary">sys</span>
+</button>
+
+<!-- Immediate per-button DOM sync to avoid FOUC / layout shift of icon or text -->
+<script is:inline>
+  (function () {
+    try {
+      var stored = localStorage.getItem('theme') || 'system';
+      var script = document.currentScript;
+      var btn = script ? script.previousElementSibling : null;
+      if (btn && btn.classList && btn.classList.contains('theme-toggle-btn')) {
+        btn.setAttribute('data-theme-current', stored);
+        var txt = btn.querySelector('.theme-toggle-text');
+        if (txt) txt.textContent = stored === 'system' ? 'sys' : stored;
+        var icons = btn.querySelectorAll('[data-theme-icon]');
+        icons.forEach(function (icon) {
+          if (icon.getAttribute('data-theme-icon') === stored) {
+            icon.classList.remove('hidden');
+          } else {
+            icon.classList.add('hidden');
+          }
+        });
+      }
+    } catch (e) {}
+  })();
+</script>
+
+<style is:global>
+  /* Micro-animation on icon change: smooth rotation & scale pop */
+  @keyframes themeIconRotate {
+    0% {
+      transform: rotate(-60deg) scale(0.7);
+      opacity: 0.2;
+    }
+    100% {
+      transform: rotate(0deg) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .theme-icon-animate {
+    animation: themeIconRotate 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Temporary smooth transition for page background, border, text */
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
+    transition-delay: 0s !important;
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    if (window.__themeToggleScriptLoaded) return;
+    window.__themeToggleScriptLoaded = true;
+
+    var THEME_CYCLE = {
+      system: 'dark',
+      dark: 'light',
+      light: 'system',
+    };
+
+    function updateAllThemeToggles(theme, animate) {
+      var buttons = document.querySelectorAll('.theme-toggle-btn');
+      buttons.forEach(function (btn) {
+        btn.setAttribute('data-theme-current', theme);
+        var textSlot = btn.querySelector('.theme-toggle-text');
+        if (textSlot) {
+          textSlot.textContent = theme === 'system' ? 'sys' : theme;
+        }
+
+        var icons = btn.querySelectorAll('[data-theme-icon]');
+        icons.forEach(function (icon) {
+          var iconName = icon.getAttribute('data-theme-icon');
+          if (iconName === theme) {
+            icon.classList.remove('hidden');
+          } else {
+            icon.classList.add('hidden');
+          }
+        });
+
+        if (animate) {
+          var iconContainer = btn.querySelector('.theme-toggle-icon');
+          if (iconContainer) {
+            iconContainer.classList.remove('theme-icon-animate');
+            void iconContainer.offsetWidth;
+            iconContainer.classList.add('theme-icon-animate');
+          }
+        }
+      });
+    }
+
+    function triggerThemeTransition() {
+      document.documentElement.classList.add('theme-transitioning');
+      if (window.__themeTransitionTimer) {
+        clearTimeout(window.__themeTransitionTimer);
+      }
+      window.__themeTransitionTimer = setTimeout(function () {
+        document.documentElement.classList.remove('theme-transitioning');
+        window.__themeTransitionTimer = null;
+      }, 260);
+    }
+
+    function applyTheme(theme, animate) {
+      try {
+        localStorage.setItem('theme', theme);
+      } catch (e) {}
+
+      if (animate) {
+        triggerThemeTransition();
+      }
+
+      var isDark =
+        theme === 'dark' ||
+        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
+      updateAllThemeToggles(theme, animate);
+    }
+
+    // Single delegated click listener
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.theme-toggle-btn');
+      if (!btn) return;
+
+      var currentTheme = 'system';
+      try {
+        currentTheme = localStorage.getItem('theme') || 'system';
+      } catch (err) {}
+
+      var nextTheme = THEME_CYCLE[currentTheme] || 'system';
+      applyTheme(nextTheme, true);
+    });
+
+    // Listen for OS color scheme changes
+    var mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    var handleSystemThemeChange = function (e) {
+      var stored = 'system';
+      try {
+        stored = localStorage.getItem('theme') || 'system';
+      } catch (err) {}
+
+      if (stored === 'system') {
+        triggerThemeTransition();
+        if (e.matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+    } else if (mediaQuery.addListener) {
+      mediaQuery.addListener(handleSystemThemeChange);
+    }
+
+    // Safety sync on DOM ready and Astro navigation events
+    function syncTheme() {
+      var stored = 'system';
+      try {
+        stored = localStorage.getItem('theme') || 'system';
+      } catch (err) {}
+      updateAllThemeToggles(stored, false);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', syncTheme);
+    } else {
+      syncTheme();
+    }
+
+    document.addEventListener('astro:after-swap', syncTheme);
+    document.addEventListener('astro:page-load', syncTheme);
+  })();
+</script>
