@@ -3,6 +3,7 @@ import '../../styles/global.css';
 import { getSession } from '../../lib/auth';
 import { getProfileData } from '../../lib/cms';
 import TerminalModal from '../../components/TerminalModal.astro';
+import ThemeToggle from '../../components/ThemeToggle.astro';
 
 const session = getSession(Astro.cookies);
 if (session) {
@@ -100,26 +101,12 @@ if (error === 'unauthorized_user') {
             color: var(--color-text);
             font-family: "JetBrains Mono", monospace;
         }
-
-        /* Theme Selector Active State */
-        .theme-btn.active {
-            color: var(--color-primary);
-            font-weight: 700;
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body class="min-h-screen bg-background text-text flex flex-col pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16">
     <!-- Top Theme Selector Bar -->
     <div class="w-full max-w-7xl mx-auto flex justify-end mb-6">
-        <div class="flex items-center gap-1 font-mono text-xs text-accent border border-muted px-2 py-1 select-none">
-            <span class="text-muted mr-1 hidden sm:inline">&gt; mode:</span>
-            <button type="button" data-theme-btn="system" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="System theme">sys</button>
-            <span class="text-muted">|</span>
-            <button type="button" data-theme-btn="dark" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="Dark theme">dark</button>
-            <span class="text-muted">|</span>
-            <button type="button" data-theme-btn="light" class="theme-btn hover:text-primary transition-colors duration-0 cursor-[crosshair] px-1" title="Light theme">light</button>
-        </div>
+        <ThemeToggle />
     </div>
 
     <main class="w-full max-w-md flex flex-col items-center gap-8 mx-auto flex-1 justify-center">
@@ -169,62 +156,10 @@ if (error === 'unauthorized_user') {
         </a>
     </main>
 
-    <!-- Runtime Theme Interactivity Script -->
+    <!-- Auto-show Terminal Modal if error exists in URL -->
     <script is:inline>
         (function () {
-            function updateThemeUI(theme) {
-                var buttons = document.querySelectorAll('[data-theme-btn]');
-                buttons.forEach(function (btn) {
-                    var btnTheme = btn.getAttribute('data-theme-btn');
-                    if (btnTheme === theme) {
-                        btn.classList.add('active');
-                        btn.setAttribute('aria-pressed', 'true');
-                    } else {
-                        btn.classList.remove('active');
-                        btn.setAttribute('aria-pressed', 'false');
-                    }
-                });
-            }
-
-            function applyTheme(theme) {
-                localStorage.setItem('theme', theme);
-                var isDark =
-                    theme === 'dark' ||
-                    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                if (isDark) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-                updateThemeUI(theme);
-            }
-
             document.addEventListener('DOMContentLoaded', function () {
-                var storedTheme = localStorage.getItem('theme') || 'system';
-                updateThemeUI(storedTheme);
-
-                var buttons = document.querySelectorAll('[data-theme-btn]');
-                buttons.forEach(function (btn) {
-                    btn.addEventListener('click', function () {
-                        var val = btn.getAttribute('data-theme-btn');
-                        if (val) {
-                            applyTheme(val);
-                        }
-                    });
-                });
-
-                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-                    var currentStored = localStorage.getItem('theme') || 'system';
-                    if (currentStored === 'system') {
-                        if (e.matches) {
-                            document.documentElement.classList.add('dark');
-                        } else {
-                            document.documentElement.classList.remove('dark');
-                        }
-                    }
-                });
-
-                // Auto-show Terminal Modal if error exists in URL
                 var errMessage = {JSON.stringify(errorMessage)};
                 var errTitle = {JSON.stringify(errorTitle)};
                 if (errMessage && window.terminalAlert) {

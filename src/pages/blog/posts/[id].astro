@@ -129,6 +129,7 @@ const blogPostSchema = {
 ---
 
 <BaseLayout
+    variant="article"
     title={post.frontmatter.title}
     description={post.frontmatter.description}
     breadcrumb={`cd ~/blog/${post.slug}`}
@@ -142,28 +143,32 @@ const blogPostSchema = {
     schemaJsonLd={blogPostSchema}
 >
     <!-- Article header -->
-    <header class="border-b border-muted pb-6">
-        <div class="flex flex-wrap items-center gap-3 font-mono text-sm text-accent mb-4">
-            <span>&gt; date: {formatDate(post.frontmatter.pubDate)}</span>
-            <span class="text-muted">|</span>
-            <span>&gt; author: fauzan</span>
-            <span class="text-muted">|</span>
-            <span>&gt; read_time: {readTime}m</span>
-        </div>
-        <h1 class="font-mono text-2xl md:text-4xl font-bold text-primary leading-tight mb-4 tracking-tight">
+    <header class="border-b border-muted pb-5">
+        <h1 class="font-mono text-2xl sm:text-3xl md:text-4xl font-bold text-primary leading-tight tracking-tight mb-3">
             {post.frontmatter.title}
         </h1>
         {post.frontmatter.description && (
-            <p class="font-sans text-base text-accent leading-relaxed mb-4">
+            <p class="font-sans text-sm sm:text-base text-accent leading-relaxed mb-4">
                 {post.frontmatter.description}
             </p>
         )}
-        <div class="flex flex-wrap gap-2">
-            {post.frontmatter.tags && post.frontmatter.tags.map((tag: string) => (
-                <span class="border border-muted bg-surface font-mono text-xs text-text px-2.5 py-1">
-                    #{tag}
-                </span>
-            ))}
+        <div class="border-t border-dashed border-muted pt-3 flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-accent">
+            <div class="flex flex-wrap items-center gap-3">
+                <span>&gt; date: {formatDate(post.frontmatter.pubDate)}</span>
+                <span class="text-muted">|</span>
+                <span>&gt; author: fauzan</span>
+                <span class="text-muted">|</span>
+                <span>&gt; {readTime}m read</span>
+            </div>
+            {post.frontmatter.tags && post.frontmatter.tags.length > 0 && (
+                <div class="flex flex-wrap gap-2">
+                    {post.frontmatter.tags.map((tag: string) => (
+                        <span class="border border-muted bg-surface font-mono text-xs text-text px-2.5 py-1">
+                            #{tag}
+                        </span>
+                    ))}
+                </div>
+            )}
         </div>
     </header>
 
@@ -203,10 +208,13 @@ const blogPostSchema = {
     </article>
 
     <!-- Footer -->
-    <footer class="border-t border-muted pt-6 font-mono text-sm text-accent flex justify-between items-center mt-8">
-        <span>EOF</span>
-        <div class="flex gap-4">
+    <footer class="border-t border-muted pt-6 font-mono text-sm text-accent flex flex-wrap justify-between items-center gap-4 mt-8">
+        <div class="flex items-center gap-3">
+            <span>EOF</span>
+            <span class="text-muted">|</span>
             <a href="/blog" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Back to Blog]</a>
+        </div>
+        <div class="flex items-center gap-4">
             <a href="#" class="hover:text-primary transition-colors duration-0 cursor-[crosshair]">[Top ↑]</a>
         </div>
     </footer>
