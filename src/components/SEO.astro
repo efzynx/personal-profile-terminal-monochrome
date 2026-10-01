@@ -72,11 +72,18 @@ const fullOgImage = rawImage.startsWith('http://') || rawImage.startsWith('https
   ? rawImage
   : `${siteBase}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
 
-const ogImageMime = fullOgImage.endsWith('.png')
+const secureOgImage = fullOgImage.startsWith('https://')
+  ? fullOgImage
+  : fullOgImage.replace(/^http:\/\//, 'https://');
+
+const cleanImgPath = fullOgImage.split('?')[0].toLowerCase();
+const ogImageMime = cleanImgPath.endsWith('.png')
   ? 'image/png'
-  : fullOgImage.endsWith('.webp')
+  : cleanImgPath.endsWith('.webp')
     ? 'image/webp'
-    : 'image/jpeg';
+    : cleanImgPath.endsWith('.gif')
+      ? 'image/gif'
+      : 'image/jpeg';
 
 const fullTitle = title.includes('Ahmad Fauzan Adiman')
   ? title
@@ -150,7 +157,7 @@ if (schemaJsonLd) {
 <meta property="og:description" content={description} />
 <meta property="og:url" content={canonicalURL} />
 <meta property="og:image" content={fullOgImage} />
-<meta property="og:image:secure_url" content={fullOgImage} />
+<meta property="og:image:secure_url" content={secureOgImage} />
 <meta property="og:image:type" content={ogImageMime} />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />

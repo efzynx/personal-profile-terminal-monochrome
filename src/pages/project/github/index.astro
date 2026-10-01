@@ -50,9 +50,15 @@ import { timeAgo } from "../../../lib/utils";
     backHref="/project"
     backLabel="cd ~/project"
 >
-    <header class="border-b border-muted pb-4">
-        <p class="font-mono text-sm text-accent">
+    <header class="border-b border-muted pb-4 mb-6">
+        <p class="font-mono text-xs text-muted mb-1">
             {profileData.terminalPrompt || "user@tux"}:~$ <span class="text-text">git ls-remote --repos efzynx | head -4</span>
+        </p>
+        <h1 class="font-mono text-xl sm:text-2xl font-bold text-primary mb-2">
+            ~/project/github — Repositori Publik GitHub
+        </h1>
+        <p class="font-sans text-sm text-accent">
+            Daftar repositori open-source dan kode publik pilihan oleh {profileData.name || "Ahmad Fauzan Adiman"}.
         </p>
     </header>
 

@@ -67,9 +67,15 @@ const levelText: Record<Level, string> = {
     backLabel="cd ~/"
 >
     <!-- Page Header -->
-    <header class="pb-2">
-        <p class="font-mono text-sm text-accent">
+    <header class="mb-6">
+        <p class="font-mono text-xs text-muted mb-1">
             {profileData.terminalPrompt || "fauzan@tux"}:~$ <span class="text-text">git log --oneline -4 github/efzynx</span>
+        </p>
+        <h1 class="font-mono text-xl sm:text-2xl font-bold text-primary mb-2">
+            ~/portfolio — Proyek Software Engineering & DevOps
+        </h1>
+        <p class="font-sans text-sm text-accent">
+            Kumpulan proyek open-source, implementasi arsitektur, dan aplikasi oleh {profileData.name || "Ahmad Fauzan Adiman"}.
         </p>
     </header>
 

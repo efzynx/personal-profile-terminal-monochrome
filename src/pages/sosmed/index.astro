@@ -56,9 +56,15 @@ const socials = [
     backHref="/"
     backLabel="cd ~/"
 >
-    <header class="pb-2">
-        <p class="font-mono text-sm text-accent">
+    <header class="mb-6">
+        <p class="font-mono text-xs text-muted mb-1">
             {profileData.terminalPrompt || "user@tux"}:~$ <span class="text-text">ls -la sosmed/</span>
+        </p>
+        <h1 class="font-mono text-xl sm:text-2xl font-bold text-primary mb-2">
+            ~/sosmed — Kanal Komunikasi & Media Sosial
+        </h1>
+        <p class="font-sans text-sm text-accent">
+            Temukan profil resmi, jejaring profesional, dan kanal media sosial {profileData.name || "Ahmad Fauzan Adiman"}.
         </p>
     </header>
 

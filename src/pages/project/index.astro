@@ -17,9 +17,15 @@ const items = [
     backHref="/"
     backLabel="cd ~/"
 >
-    <header class="pb-2">
-        <p class="font-mono text-sm text-accent">
+    <header class="mb-6">
+        <p class="font-mono text-xs text-muted mb-1">
             {profileData.terminalPrompt || "user@tux"}:~$ <span class="text-text">ls -la project/</span>
+        </p>
+        <h1 class="font-mono text-xl sm:text-2xl font-bold text-primary mb-2">
+            ~/project — Direktori Repositori & Eksplorasi Kode
+        </h1>
+        <p class="font-sans text-sm text-accent">
+            Katalog repositori open-source, kode sumber, dan eksperimen teknis oleh {profileData.name || "Ahmad Fauzan Adiman"}.
         </p>
     </header>
 

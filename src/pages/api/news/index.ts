@@ -3,6 +3,7 @@ import { getSession } from '../../../lib/auth';
 import { validateApiKey } from '../../../lib/apikey';
 import { listNews, saveNewsItem } from '../../../lib/news';
 import { sanitizeHtml } from '../../../lib/sanitize';
+import { submitToIndexNow } from '../../../lib/indexnow';
 
 export const GET: APIRoute = async ({ cookies, request }) => {
   const session = getSession(cookies);
@@ -35,11 +36,15 @@ export const POST: APIRoute = async ({ cookies, request }) => {
     const body = await request.json();
     const { id, title, summary, content, sourceUrl, sourceName, tags, coverImage, publishedAt, draft } = body;
 
-    const cleanTitle = sanitizeHtml(String(title), { allowedTags: [], allowedAttributes: {} }).trim();
-    const cleanSummary = sanitizeHtml(String(summary), { allowedTags: [], allowedAttributes: {} }).trim();
-    const cleanSourceName = sanitizeHtml(String(sourceName), { allowedTags: [], allowedAttributes: {} }).trim();
+    const rawCover = coverImage || (body as any).cover_image;
+    const finalSourceUrl = sourceUrl || (body as any).source_url;
+    const rawSourceName = sourceName || (body as any).source_name;
 
-    if (!cleanTitle || !cleanSummary || !content || !sourceUrl || !cleanSourceName) {
+    const cleanTitle = sanitizeHtml(String(title), { allowedTags: [] }).trim();
+    const cleanSummary = sanitizeHtml(String(summary), { allowedTags: [] }).trim();
+    const cleanSourceName = sanitizeHtml(String(rawSourceName || ''), { allowedTags: [] }).trim();
+
+    if (!cleanTitle || !cleanSummary || !content || !finalSourceUrl || !cleanSourceName) {
       return new Response(
         JSON.stringify({ error: 'title, summary, content, sourceUrl, dan sourceName wajib diisi' }),
         { status: 400 },
@@ -67,21 +72,34 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       }
     }
 
+    const isDraft = draft !== undefined ? Boolean(draft) : false;
+
     const result = await saveNewsItem({
       id,
       title: cleanTitle,
       summary: cleanSummary,
       content,
-      sourceUrl,
+      sourceUrl: finalSourceUrl,
       sourceName: cleanSourceName,
       tags: tags || [],
-      coverImage: coverImage || undefined,
-      draft: draft !== undefined ? Boolean(draft) : false,
+      coverImage: rawCover || undefined,
+      draft: isDraft,
       publishedAt: finalPublishedAt,
     });
 
     if (!result.success) {
       return new Response(JSON.stringify({ error: result.message }), { status: 500 });
+    }
+
+    // Otomatis kirim URL baru ke protokol IndexNow (asinkron / non-blocking)
+    if (!isDraft && result.id) {
+      const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.includes('localhost')
+        ? process.env.PUBLIC_SITE_URL.replace(/\/$/, '')
+        : 'https://www.efzyn.my.id';
+      const newsUrl = `${siteBase}/news/${result.id}`;
+      submitToIndexNow(newsUrl).catch((err) => {
+        console.error('[IndexNow] Gagal otomatis submit news URL:', err);
+      });
     }
 
     return new Response(JSON.stringify({ success: true, message: result.message, id: result.id }), {

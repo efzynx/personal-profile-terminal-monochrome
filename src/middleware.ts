@@ -24,7 +24,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isProtectedApi =
     pathname.startsWith('/api/posts') ||
     pathname.startsWith('/api/news') ||
-    pathname.startsWith('/api/upload');
+    pathname.startsWith('/api/upload') ||
+    pathname.startsWith('/api/indexnow');
   const isSettingsApi = pathname.startsWith('/api/settings') || pathname.startsWith('/api/profile');
   const isApiRoute = pathname.startsWith('/api/');
 

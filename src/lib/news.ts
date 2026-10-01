@@ -11,6 +11,7 @@ export interface NewsItem {
   sourceName: string;
   tags: string[];
   coverImage?: string;
+  cover_image?: string;
   draft: boolean;
   publishedAt: string;
   createdAt?: string;
@@ -62,19 +63,23 @@ export async function listNews(): Promise<NewsItem[]> {
         .order('published_at', { ascending: false })
         .order('created_at', { ascending: false });
       if (data && !error) {
-        return data.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          summary: item.summary,
-          content: item.content || '',
-          sourceUrl: item.source_url || item.sourceUrl,
-          sourceName: item.source_name || item.sourceName,
-          tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
-          coverImage: item.cover_image || item.coverImage || undefined,
-          draft: Boolean(item.draft),
-          publishedAt: item.published_at || item.publishedAt,
-          createdAt: item.created_at || item.createdAt || undefined,
-        }));
+        return data.map((item: any) => {
+          const coverImg = item.cover_image || item.coverImage || undefined;
+          return {
+            id: item.id,
+            title: item.title,
+            summary: item.summary,
+            content: item.content || '',
+            sourceUrl: item.source_url || item.sourceUrl,
+            sourceName: item.source_name || item.sourceName,
+            tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
+            coverImage: coverImg,
+            cover_image: coverImg,
+            draft: Boolean(item.draft),
+            publishedAt: item.published_at || item.publishedAt,
+            createdAt: item.created_at || item.createdAt || undefined,
+          };
+        });
       }
     }
   }
@@ -105,19 +110,23 @@ export async function listPublishedNews(): Promise<NewsItem[]> {
         .order('published_at', { ascending: false })
         .order('created_at', { ascending: false });
       if (data && !error) {
-        return data.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          summary: item.summary,
-          content: item.content || '',
-          sourceUrl: item.source_url || item.sourceUrl,
-          sourceName: item.source_name || item.sourceName,
-          tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
-          coverImage: item.cover_image || item.coverImage || undefined,
-          draft: false,
-          publishedAt: item.published_at || item.publishedAt,
-          createdAt: item.created_at || item.createdAt || undefined,
-        }));
+        return data.map((item: any) => {
+          const coverImg = item.cover_image || item.coverImage || undefined;
+          return {
+            id: item.id,
+            title: item.title,
+            summary: item.summary,
+            content: item.content || '',
+            sourceUrl: item.source_url || item.sourceUrl,
+            sourceName: item.source_name || item.sourceName,
+            tags: typeof item.tags === 'string' ? JSON.parse(item.tags) : (item.tags || []),
+            coverImage: coverImg,
+            cover_image: coverImg,
+            draft: false,
+            publishedAt: item.published_at || item.publishedAt,
+            createdAt: item.created_at || item.createdAt || undefined,
+          };
+        });
       }
     }
   }
@@ -145,6 +154,7 @@ export async function getNewsItem(id: string): Promise<NewsItem | null> {
     if (supabase) {
       const { data, error } = await supabase.from('news_items').select('*').eq('id', id).maybeSingle();
       if (data && !error) {
+        const coverImg = data.cover_image || data.coverImage || undefined;
         return {
           id: data.id,
           title: data.title,
@@ -153,7 +163,8 @@ export async function getNewsItem(id: string): Promise<NewsItem | null> {
           sourceUrl: data.source_url || data.sourceUrl,
           sourceName: data.source_name || data.sourceName,
           tags: typeof data.tags === 'string' ? JSON.parse(data.tags) : (data.tags || []),
-          coverImage: data.cover_image || data.coverImage || undefined,
+          coverImage: coverImg,
+          cover_image: coverImg,
           draft: Boolean(data.draft),
           publishedAt: data.published_at || data.publishedAt,
           createdAt: data.created_at || data.createdAt || undefined,
@@ -185,7 +196,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
         source_url: item.sourceUrl,
         source_name: item.sourceName,
         tags: item.tags || [],
-        cover_image: item.coverImage || null,
+        cover_image: item.coverImage || item.cover_image || null,
         draft: Boolean(item.draft),
         published_at: item.publishedAt,
         updated_at: nowIso,
@@ -206,6 +217,7 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
     const items = readLocalNews();
     const idx = items.findIndex(i => i.id === id);
     const existing = idx >= 0 ? items[idx] : null;
+    const coverVal = item.coverImage || item.cover_image || undefined;
     const newsItem: NewsItem = {
       id,
       title: item.title,
@@ -214,7 +226,8 @@ export async function saveNewsItem(item: Omit<NewsItem, 'id'> & { id?: string })
       sourceUrl: item.sourceUrl,
       sourceName: item.sourceName,
       tags: item.tags || [],
-      coverImage: item.coverImage || undefined,
+      coverImage: coverVal,
+      cover_image: coverVal,
       draft: Boolean(item.draft),
       publishedAt: item.publishedAt,
       createdAt: item.createdAt || existing?.createdAt || nowIso,
