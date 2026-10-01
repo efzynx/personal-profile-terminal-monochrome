@@ -47,6 +47,62 @@ export function extractFirstImage(content?: string): string | undefined {
 }
 
 /**
+ * Strips the first image from markdown or HTML content.
+ * If targetUrl is provided, it strips the image matching that URL (ignoring query parameters).
+ * If targetUrl is not provided, it strips the first markdown or HTML image found.
+ */
+export function stripFirstImage(content?: string, targetUrl?: string): string {
+  if (!content || typeof content !== 'string') return '';
+
+  let matchToRemove: string | undefined;
+
+  if (targetUrl) {
+    const cleanTarget = targetUrl.split('?')[0].replace(/[<>]/g, '').trim();
+    if (cleanTarget) {
+      const escaped = cleanTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Markdown: ![alt](url) where url matches cleanTarget (ignoring query parameters and optional title)
+      const mdRegex = new RegExp(`!\\[[\\s\\S]*?\\]\\(\\s*<?${escaped}(?:\\?[^\\s\\)>]*)?>?(?:\\s+["'][^"']*["'])?\\s*\\)`);
+      // HTML: <img ... src="url" ...> where src matches cleanTarget (ignoring query parameters)
+      const htmlRegex = new RegExp(`<img\\b[^>]*?\\bsrc=["']?${escaped}(?:\\?[^\\s"'>]*)?["']?[^>]*\\/?>`, 'i');
+
+      const mdMatch = content.match(mdRegex);
+      const htmlMatch = content.match(htmlRegex);
+
+      if (mdMatch && htmlMatch) {
+        matchToRemove = (mdMatch.index ?? 0) <= (htmlMatch.index ?? 0) ? mdMatch[0] : htmlMatch[0];
+      } else if (mdMatch) {
+        matchToRemove = mdMatch[0];
+      } else if (htmlMatch) {
+        matchToRemove = htmlMatch[0];
+      }
+    }
+  } else {
+    // Markdown: ![alt](url)
+    const mdMatch = content.match(/!\[[\s\S]*?\]\(\s*<?(?:https?:\/\/|\/)[^\s\)>]+>?(?:\s+["'][^"']*["'])?\s*\)/);
+    // HTML: <img ... src="..." ...>
+    const htmlMatch = content.match(/<img\b[^>]*?\bsrc=["']?(?:https?:\/\/|\/)[^\s"'>]+["']?[^>]*\/?>/i);
+
+    if (mdMatch && htmlMatch) {
+      matchToRemove = (mdMatch.index ?? 0) <= (htmlMatch.index ?? 0) ? mdMatch[0] : htmlMatch[0];
+    } else if (mdMatch) {
+      matchToRemove = mdMatch[0];
+    } else if (htmlMatch) {
+      matchToRemove = htmlMatch[0];
+    }
+  }
+
+  if (matchToRemove) {
+    return content
+      .replace(matchToRemove, '')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  return content;
+}
+
+/**
  * Checks if an image URL is safe and valid to be used as Open Graph image (social preview).
  * Rejects domains known to block social crawlers (e.g. Wikimedia 403), data URLs, and SVGs.
  */

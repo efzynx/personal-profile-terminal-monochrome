@@ -2,7 +2,7 @@
 export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getNewsItem } from "../../lib/news";
-import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage } from "../../lib/utils";
+import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage, stripFirstImage } from "../../lib/utils";
 import { sanitizeArticleContent } from "../../lib/sanitize";
 import { Marked } from "marked";
 
@@ -73,8 +73,6 @@ markedInstance.use({
     },
 });
 
-const htmlContent = sanitizeArticleContent(markedInstance.parse(rawContent) as string);
-
 const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.includes('localhost')
     ? process.env.PUBLIC_SITE_URL.replace(/\/$/, '')
     : 'https://www.efzyn.my.id';
@@ -91,6 +89,13 @@ const explicitCover =
 // 2. Ekstrak gambar pertama dari konten artikel/markdown jika tidak ada cover eksplisit
 const rawContentImage = extractFirstImage(rawContent);
 const safeContentImage = isSafeForOgImage(rawContentImage) ? rawContentImage : undefined;
+
+const coverToShow = explicitCover || rawContentImage;
+const bodyContent = coverToShow
+    ? stripFirstImage(rawContent, explicitCover ? explicitCover : undefined)
+    : rawContent;
+
+const htmlContent = sanitizeArticleContent(markedInstance.parse(bodyContent) as string);
 
 // 3. Fallback ke banner situs jika tidak ada gambar sama sekali atau gambar konten tidak aman
 const resolvedImage = explicitCover || safeContentImage || '/banner.png';
@@ -175,10 +180,10 @@ const newsArticleSchema = {
     </header>
 
     <!-- Optional Cover Image -->
-    {(explicitCover || rawContentImage) && (
+    {coverToShow && (
         <div class="my-6 border border-muted bg-surface overflow-hidden">
             <img
-                src={explicitCover || rawContentImage}
+                src={coverToShow}
                 alt={item.title}
                 class="w-full max-h-[400px] object-cover"
                 loading="eager"
