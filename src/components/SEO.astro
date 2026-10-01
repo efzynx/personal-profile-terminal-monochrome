@@ -18,6 +18,7 @@ interface Props {
   schemaJsonLd?: Record<string, any> | Array<Record<string, any>>;
   faviconUrl?: string;
   avatarUrl?: string;
+  noindex?: boolean;
 }
 
 const {
@@ -32,6 +33,7 @@ const {
   schemaJsonLd,
   faviconUrl,
   avatarUrl,
+  noindex = false,
 } = Astro.props;
 
 const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.includes('localhost')
@@ -120,6 +122,75 @@ const defaultWebSiteSchema = {
   }
 };
 
+// --- Schema.org BreadcrumbList Generator ---
+const cleanPath = pathname.replace(/\/$/, '');
+const segments = cleanPath ? cleanPath.split('/').filter(Boolean) : [];
+
+const segmentNameMap: Record<string, string> = {
+  blog: 'Blog',
+  news: 'News',
+  portfolio: 'Portfolio',
+  project: 'Projects',
+  github: 'GitHub',
+  sosmed: 'Sosmed',
+  writer: 'Writer',
+  dashboard: 'Dashboard',
+  editor: 'Editor',
+  settings: 'Settings',
+  profile: 'Profile',
+  '404': '404 Not Found',
+};
+
+const breadcrumbElements: Array<{ '@type': string; position: number; name: string; item: string }> = [
+  {
+    '@type': 'ListItem',
+    position: 1,
+    name: 'Home',
+    item: `${siteBase}/`,
+  },
+];
+
+if (segments.length > 0) {
+  let accumulatedPath = '';
+  let currentPosition = 2;
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const isLeaf = i === segments.length - 1;
+
+    // Khusus rute /blog/posts/:id -> lewati segmen internal 'posts' agar struktur skema: Home -> Blog -> Judul Artikel
+    if (seg === 'posts' && i > 0 && segments[i - 1] === 'blog') {
+      accumulatedPath += `/${seg}`;
+      continue;
+    }
+
+    accumulatedPath += `/${seg}`;
+
+    let itemName = '';
+    if (isLeaf) {
+      const cleanLeafTitle = title.replace(/\s*—\s*Ahmad Fauzan Adiman.*$/i, '').trim();
+      itemName = cleanLeafTitle || segmentNameMap[seg] || (seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '));
+    } else {
+      itemName = segmentNameMap[seg] || (seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '));
+    }
+
+    const itemUrl = isLeaf ? canonicalURL : `${siteBase}${accumulatedPath}`;
+
+    breadcrumbElements.push({
+      '@type': 'ListItem',
+      position: currentPosition++,
+      name: itemName,
+      item: itemUrl,
+    });
+  }
+}
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  'itemListElement': breadcrumbElements,
+};
+
 let finalSchema: any;
 if (schemaJsonLd) {
   finalSchema = schemaJsonLd;
@@ -128,14 +199,24 @@ if (schemaJsonLd) {
 } else {
   finalSchema = defaultWebSiteSchema;
 }
+
+// Gabungkan skema BreadcrumbList bersama skema yang sudah ada
+const schemaList = Array.isArray(finalSchema) ? [...finalSchema] : [finalSchema];
+const alreadyHasBreadcrumb = schemaList.some(
+  (s) => s && (s['@type'] === 'BreadcrumbList' || (Array.isArray(s['@type']) && s['@type'].includes('BreadcrumbList')))
+);
+if (!alreadyHasBreadcrumb) {
+  schemaList.push(breadcrumbSchema);
+}
+finalSchema = schemaList.length === 1 ? schemaList[0] : schemaList;
 ---
 
 <!-- Canonical URL -->
 <link rel="canonical" href={canonicalURL} />
 
-<!-- Meta Robots Default -->
-<meta name="robots" content="index, follow, max-image-preview:large" />
-<meta name="googlebot" content="index, follow, max-image-preview:large" />
+<!-- Meta Robots -->
+<meta name="robots" content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"} />
+<meta name="googlebot" content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"} />
 
 <!-- Mobile Theme Color -->
 <meta name="theme-color" content="#0a0a0a" />

@@ -1,0 +1,33 @@
+# Ahmad Fauzan Adiman
+
+> Backend Developer & DevOps Enthusiast based in Indonesia. Final-year Informatics student at Universitas Nurul Jadid (UNUJA). Specializing in scalable backend architectures, cloud infrastructure, and Linux systems.
+
+Ahmad Fauzan Adiman (known online as efzyn / efzynx) is a software engineer focused on reliable backend systems, containerization, cloud engineering, and automated CI/CD pipelines. This site serves as his central engineering gateway, terminal-monochrome portfolio, technical blog, and curated tech news repository.
+
+## Core Technical Skills
+
+- **Backend & APIs**: Node.js, TypeScript, JavaScript, Python, Express, Fastify, REST APIs, GraphQL, Cloudflare Workers
+- **Databases & Storage**: PostgreSQL, SQLite, Redis, Supabase, Drizzle ORM
+- **DevOps & Cloud**: Docker, Kubernetes, Amazon Web Services (AWS Lightsail, EC2, S3), Nginx, CI/CD (GitHub Actions), Systemd
+- **Operating Systems**: Linux (Arch Linux, Debian, Ubuntu), Shell Scripting / Bash, Performance Tuning
+- **Frontend & UI/UX**: Astro (SSR & Static), Tailwind CSS, Terminal Monochrome Design System, Zero-JS Content-First Architecture
+
+## Key Links & Feeds
+
+- [Gateway Home](https://www.efzyn.my.id/): Central command terminal and profile overview.
+- [Portfolio](https://www.efzyn.my.id/portfolio): Professional background, technical competencies, and architectural projects.
+- [Technical Blog](https://www.efzyn.my.id/blog): Articles covering backend development, database optimization, and DevOps workflows.
+- [Tech News](https://www.efzyn.my.id/news): Curated technology updates and academic milestones.
+- [Projects Directory](https://www.efzyn.my.id/project): Open-source repositories and software tools.
+- [GitHub Showcase](https://www.efzyn.my.id/project/github): Live repositories fetched directly via GitHub API.
+- [Social Links](https://www.efzyn.my.id/sosmed): Verified links to GitHub, LinkedIn, Instagram, TikTok, and YouTube.
+- [RSS Feed](https://www.efzyn.my.id/rss.xml): RSS 2.0 syndication feed for automated content ingestion.
+- [Sitemap](https://www.efzyn.my.id/sitemap.xml): XML sitemap for search engine indexing.
+
+## Online Identity & Contacts
+
+- **GitHub**: https://github.com/efzynx
+- **LinkedIn**: https://linkedin.com/in/efzyn
+- **Instagram**: https://instagram.com/efzyn_
+- **TikTok**: https://tiktok.com/@efzynx
+- **YouTube**: https://youtube.com/@efzynx

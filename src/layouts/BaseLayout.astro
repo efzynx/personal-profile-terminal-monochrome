@@ -26,6 +26,7 @@ interface Props {
     articleTags?: string[];
     schemaJsonLd?: Record<string, any> | Array<Record<string, any>>;
     variant?: 'default' | 'article';
+    noindex?: boolean;
 }
 
 const {
@@ -43,6 +44,7 @@ const {
     articleTags,
     schemaJsonLd,
     variant = 'default',
+    noindex = false,
 } = Astro.props;
 
 import '../styles/global.css';
@@ -79,7 +81,11 @@ const activeAvatar = profileData.avatarUrl || "/saya.avif";
             schemaJsonLd={schemaJsonLd}
             faviconUrl={activeFavicon}
             avatarUrl={activeAvatar}
+            noindex={noindex}
         />
+
+        <!-- Web App Manifest (PWA) -->
+        <link rel="manifest" href="/site.webmanifest" />
 
         <!-- RSS Feed Auto-Discovery -->
         <link
@@ -108,7 +114,7 @@ const activeAvatar = profileData.avatarUrl || "/saya.avif";
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap"
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap"
             rel="stylesheet"
         />
 
@@ -162,9 +168,19 @@ const activeAvatar = profileData.avatarUrl || "/saya.avif";
             ) : (
                 <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm">
                     <div class="flex items-center gap-2 text-accent">
-                        <span class="material-symbols-outlined text-[16px] text-primary"
-                            >terminal</span
+                        <svg
+                            class="w-4 h-4 text-primary shrink-0"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="square"
+                            stroke-linejoin="miter"
+                            aria-hidden="true"
                         >
+                            <polyline points="4 17 10 11 4 5"></polyline>
+                            <line x1="12" y1="19" x2="20" y2="19"></line>
+                        </svg>
                         <a
                             href="/"
                             class="hover:text-primary transition-colors duration-0 cursor-[crosshair]"

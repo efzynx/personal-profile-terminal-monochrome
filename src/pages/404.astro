@@ -1,0 +1,125 @@
+---
+export const prerender = false;
+Astro.response.status = 404;
+
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { getProfileData } from "../lib/cms";
+
+const profileData = await getProfileData();
+const promptUser = profileData?.terminalPrompt?.split(':')[0] || 'fauzan@archLinux';
+---
+
+<BaseLayout
+    title="404 Not Found"
+    description="bash: cd: 404: No such file or directory — 404: command not found"
+    breadcrumb="cd ~/404"
+    noindex={true}
+>
+    <div class="flex items-center justify-center min-h-[70vh] py-6 sm:py-10">
+        <div class="w-full max-w-2xl border border-muted p-6 sm:p-8 md:p-10 flex flex-col gap-6 bg-surface/30">
+            <!-- Terminal Window Top Bar -->
+            <div class="flex items-center justify-between border-b border-dashed border-muted pb-4 font-mono text-xs text-muted">
+                <div class="flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 bg-muted"></span>
+                    <span class="inline-block w-2.5 h-2.5 border border-muted"></span>
+                    <span class="inline-block w-2.5 h-2.5 border border-muted"></span>
+                    <span class="ml-2 text-accent">session: bash (tty1)</span>
+                </div>
+                <span class="text-accent font-semibold">[ EXIT STATUS 404 ]</span>
+            </div>
+
+            <!-- Terminal Error Output -->
+            <div class="font-mono flex flex-col gap-3">
+                <div class="text-xs sm:text-sm text-accent">
+                    <span>{promptUser}:~$</span> <span class="text-primary font-bold">cd /requested-resource</span>
+                </div>
+
+                <h1 class="text-xl sm:text-2xl font-bold text-primary tracking-tight leading-snug">
+                    bash: cd: 404: No such file or directory
+                </h1>
+
+                <div class="bg-background border border-muted p-4 font-mono text-xs sm:text-sm flex flex-col gap-1.5">
+                    <p class="text-text">
+                        <span class="text-muted mr-2">&gt;</span>404: command not found
+                    </p>
+                    <p class="text-accent">
+                        <span class="text-muted mr-2">&gt;</span>error: target inode not found in filesystem hierarchy.
+                    </p>
+                    <p class="text-muted">
+                        <span class="text-muted mr-2">&gt;</span>hint: check spelling or return to gateway root directory.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Recovery Commands / Nav Links -->
+            <div class="border-t border-dashed border-muted pt-5 flex flex-col gap-3">
+                <p class="font-mono text-xs text-accent uppercase tracking-wider font-semibold">
+                    [ AVAILABLE NAVIGATION COMMANDS ]
+                </p>
+
+                <nav class="flex flex-col gap-2 font-mono text-xs sm:text-sm" aria-label="404 recovery navigation">
+                    <a
+                        href="/"
+                        class="group flex items-center justify-between p-3 border border-muted hover:border-primary hover:bg-surface transition-colors duration-0 cursor-[crosshair] no-underline"
+                    >
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-accent group-hover:text-primary">&gt;</span>
+                            <span class="text-primary font-bold">cd ~/</span>
+                        </div>
+                        <span class="text-muted group-hover:text-text text-xs">Return to Gateway Home</span>
+                    </a>
+
+                    <a
+                        href="/blog"
+                        class="group flex items-center justify-between p-3 border border-muted hover:border-primary hover:bg-surface transition-colors duration-0 cursor-[crosshair] no-underline"
+                    >
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-accent group-hover:text-primary">&gt;</span>
+                            <span class="text-primary font-bold">cd ~/blog</span>
+                        </div>
+                        <span class="text-muted group-hover:text-text text-xs">Read Technical Articles</span>
+                    </a>
+
+                    <a
+                        href="/news"
+                        class="group flex items-center justify-between p-3 border border-muted hover:border-primary hover:bg-surface transition-colors duration-0 cursor-[crosshair] no-underline"
+                    >
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-accent group-hover:text-primary">&gt;</span>
+                            <span class="text-primary font-bold">cd ~/news</span>
+                        </div>
+                        <span class="text-muted group-hover:text-text text-xs">Read Curated News</span>
+                    </a>
+
+                    <a
+                        href="/portfolio"
+                        class="group flex items-center justify-between p-3 border border-muted hover:border-primary hover:bg-surface transition-colors duration-0 cursor-[crosshair] no-underline"
+                    >
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-accent group-hover:text-primary">&gt;</span>
+                            <span class="text-primary font-bold">cd ~/portfolio</span>
+                        </div>
+                        <span class="text-muted group-hover:text-text text-xs">View Engineering Portfolio</span>
+                    </a>
+
+                    <a
+                        href="/project"
+                        class="group flex items-center justify-between p-3 border border-muted hover:border-primary hover:bg-surface transition-colors duration-0 cursor-[crosshair] no-underline"
+                    >
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-accent group-hover:text-primary">&gt;</span>
+                            <span class="text-primary font-bold">cd ~/project</span>
+                        </div>
+                        <span class="text-muted group-hover:text-text text-xs">Browse Open-Source Projects</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Footer Diagnostic -->
+            <div class="border-t border-dashed border-muted pt-4 flex items-center justify-between font-mono text-xs text-muted">
+                <span>errno: ENOENT (2)</span>
+                <span class="text-accent">type 'cd ~/' to reset</span>
+            </div>
+        </div>
+    </div>
+</BaseLayout>

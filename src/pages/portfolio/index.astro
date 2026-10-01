@@ -1,47 +1,14 @@
 ---
 export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
+
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getProfileData } from "../../lib/cms";
+import { getGithubRepos, type GitHubRepo } from "../../lib/github";
+import { timeAgo } from "../../lib/utils";
 
 const profileData = await getProfileData();
-
-interface Repo {
-    id: number;
-    name: string;
-    description: string | null;
-    html_url: string;
-    language: string | null;
-    stargazers_count: number;
-    updated_at: string;
-    topics: string[];
-}
-
-const githubToken = process.env.GITHUB_TOKEN;
-const githubHeaders: Record<string, string> = {
-    Accept: "application/vnd.github.v3+json",
-};
-if (githubToken) {
-    githubHeaders["Authorization"] = `Bearer ${githubToken}`;
-}
-
-let repos: Repo[] = [];
-let fetchError = false;
-
-try {
-    const res = await fetch(
-        "https://api.github.com/users/efzynx/repos?sort=updated&per_page=4&type=public",
-        { headers: githubHeaders }
-    );
-    if (res.ok) {
-        repos = await res.json();
-    } else {
-        fetchError = true;
-    }
-} catch {
-    fetchError = true;
-}
-
-import { timeAgo } from "../../lib/utils";
+const { repos, error: fetchError } = await getGithubRepos("efzynx", 4);
 
 const skills = profileData.skills || [];
 

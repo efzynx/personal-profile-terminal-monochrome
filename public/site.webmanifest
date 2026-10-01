@@ -1,0 +1,27 @@
+{
+  "name": "Ahmad Fauzan Adiman",
+  "short_name": "efzyn",
+  "description": "Backend Developer & DevOps Enthusiast — Personal Terminal Monochrome Portfolio & Blog",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0a0a0a",
+  "background_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/banner.png",
+      "sizes": "1200x630",
+      "type": "image/png"
+    }
+  ]
+}
