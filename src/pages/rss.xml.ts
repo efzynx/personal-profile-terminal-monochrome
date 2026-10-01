@@ -59,11 +59,18 @@ export const GET: APIRoute = async (context) => {
     (a, b) => b.pubDate.getTime() - a.pubDate.getTime()
   );
 
-  return rss({
+  const response = await rss({
     title: `${profile.name || 'Ahmad Fauzan Adiman'} — Terminal Monochrome`,
     description: profile.bio || 'Personal blog, technical notes, and curated tech news feed',
     site: siteUrl,
     items: allItems,
     customData: `<language>id</language>`,
   });
+
+  response.headers.set(
+    'Cache-Control',
+    'public, max-age=3600, s-maxage=86400, stale-while-revalidate=600'
+  );
+
+  return response;
 };

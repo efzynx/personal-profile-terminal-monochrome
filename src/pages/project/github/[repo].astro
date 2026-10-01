@@ -1,25 +1,13 @@
 ---
 export const prerender = true;
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { getGithubRepos } from "../../../lib/github";
 
 export async function getStaticPaths() {
-    const token = process.env.GITHUB_TOKEN;
-    const headers: Record<string, string> = { Accept: "application/vnd.github.v3+json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-
-    try {
-        const res = await fetch(
-            "https://api.github.com/users/efzynx/repos?sort=updated&per_page=4&type=public",
-            { headers }
-        );
-        if (!res.ok) return [];
-        const repos = await res.json();
-        return repos.map((repo: { name: string }) => ({
-            params: { repo: repo.name },
-        }));
-    } catch {
-        return [];
-    }
+    const { repos } = await getGithubRepos("efzynx", 4);
+    return repos.map((repo) => ({
+        params: { repo: repo.name },
+    }));
 }
 
 const { repo } = Astro.params;

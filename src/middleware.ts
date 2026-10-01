@@ -110,5 +110,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), browsing-topics=()');
+
+  // Cache-Control untuk halaman publik SSR (non-auth, non-api, non-dashboard, status 200)
+  if (
+    ['GET', 'HEAD'].includes(request.method) &&
+    !pathname.startsWith('/writer') &&
+    !pathname.startsWith('/api') &&
+    response.status === 200 &&
+    !response.headers.has('Cache-Control')
+  ) {
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
+  }
+
   return response;
 });
