@@ -179,13 +179,13 @@ const newsArticleSchema = {
         </div>
     </header>
 
-    <!-- Optional Cover Image -->
+    <!-- Optional Cover Image (Compact Editorial Banner) -->
     {coverToShow && (
-        <div class="my-6 border border-muted bg-surface overflow-hidden">
+        <div class="my-4 sm:my-5 border border-muted bg-surface overflow-hidden">
             <img
                 src={coverToShow}
                 alt={item.title}
-                class="w-full max-h-[400px] object-cover"
+                class="w-full max-h-[190px] sm:max-h-[260px] md:max-h-[320px] object-cover object-center"
                 loading="eager"
             />
         </div>
