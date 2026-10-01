@@ -80,13 +80,16 @@ const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.inc
 const pageUrl = `${siteBase}/blog/posts/${post.slug}`;
 
 // 1. Cek field cover image eksplisit
-const explicitCover =
+const rawExplicitCover =
     post.frontmatter.coverImage ||
     (post.frontmatter as any).cover_image ||
     (post.frontmatter as any).thumbnail ||
     (post.frontmatter as any).image ||
     (post as any).coverImage ||
     (post as any).cover_image;
+
+const hasValidCover = typeof rawExplicitCover === 'string' && rawExplicitCover.trim() !== '';
+const explicitCover = hasValidCover ? rawExplicitCover.trim() : undefined;
 
 // 2. Ekstrak gambar pertama dari konten artikel/markdown jika tidak ada cover eksplisit
 const rawContentImage = extractFirstImage(rawContent);
@@ -100,7 +103,7 @@ const bodyContent = coverToShow
 const htmlContent = sanitizeArticleContent(markedInstance.parse(bodyContent) as string);
 
 // 3. Fallback ke banner situs jika tidak ada gambar sama sekali atau gambar konten tidak aman
-const resolvedImage = explicitCover || safeContentImage || '/banner.png';
+const resolvedImage = explicitCover || safeContentImage || `${siteBase}/banner.png`;
 
 // URL absolut untuk Open Graph, Twitter Cards, dan Schema.org
 const fullOgImage =
