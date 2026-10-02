@@ -1,18 +1,28 @@
 ---
 export const prerender = false;
-Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
 
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { getSession } from "../../lib/auth";
 import { getNewsItem } from "../../lib/news";
 import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage, stripFirstImage } from "../../lib/utils";
 import { sanitizeArticleContent } from "../../lib/sanitize";
 import { Marked } from "marked";
 
+const session = getSession(Astro.cookies);
 const { id } = Astro.params;
 const item = await getNewsItem(id || "");
 
-if (!item || item.draft) {
+if (!item) {
     return Astro.redirect("/news");
+}
+if (item.draft && !session) {
+    return Astro.redirect("/news");
+}
+
+if (item.draft) {
+    Astro.response.headers.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+} else {
+    Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
 }
 
 const rawContent = item.content || "";
@@ -149,6 +159,7 @@ const newsArticleSchema = {
     articleAuthor={item.sourceName}
     articleTags={item.tags}
     schemaJsonLd={newsArticleSchema}
+    noindex={Boolean(item.draft)}
 >
     <!-- Article header -->
     <header class="border-b border-muted pb-5">
@@ -183,6 +194,13 @@ const newsArticleSchema = {
             )}
         </div>
     </header>
+
+    {item.draft && (
+        <div class="border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 p-3 font-mono text-xs flex flex-wrap items-center justify-between gap-2 mb-4">
+            <span>[DRAFT PREVIEW] Konten berita ini berstatus draft dan hanya dapat dilihat oleh admin terautentikasi.</span>
+            <a href="/writer/dashboard/news" class="underline hover:text-white cursor-[crosshair]">[Kembali ke CMS]</a>
+        </div>
+    )}
 
     <!-- Optional Cover Image (Compact Editorial Banner) -->
     {coverToShow && (

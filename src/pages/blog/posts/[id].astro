@@ -1,18 +1,28 @@
 ---
 export const prerender = false;
-Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
 
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { getSession } from "../../../lib/auth";
 import { getPost } from "../../../lib/cms";
 import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage, stripFirstImage } from "../../../lib/utils";
 import { sanitizeArticleContent } from "../../../lib/sanitize";
 import { Marked } from "marked";
 
+const session = getSession(Astro.cookies);
 const { id } = Astro.params;
 const post = await getPost(id || "");
 
 if (!post) {
     return Astro.redirect("/blog");
+}
+if (post.frontmatter.draft && !session) {
+    return Astro.redirect("/blog");
+}
+
+if (post.frontmatter.draft) {
+    Astro.response.headers.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+} else {
+    Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
 }
 
 const rawContent = post.content || "";
@@ -151,6 +161,7 @@ const blogPostSchema = {
     articleAuthor="Ahmad Fauzan Adiman"
     articleTags={post.frontmatter.tags}
     schemaJsonLd={blogPostSchema}
+    noindex={Boolean(post.frontmatter.draft)}
 >
     <!-- Article header -->
     <header class="border-b border-muted pb-5">
@@ -181,6 +192,13 @@ const blogPostSchema = {
             )}
         </div>
     </header>
+
+    {post.frontmatter.draft && (
+        <div class="border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 p-3 font-mono text-xs flex flex-wrap items-center justify-between gap-2 mb-4">
+            <span>[DRAFT PREVIEW] Artikel ini berstatus draft dan hanya dapat dilihat oleh admin terautentikasi.</span>
+            <a href={`/writer/dashboard/editor?slug=${post.slug}`} class="underline hover:text-white cursor-[crosshair]">[Edit di CMS]</a>
+        </div>
+    )}
 
     <!-- Optional Cover Image (Compact Editorial Banner) -->
     {coverToShow && (
