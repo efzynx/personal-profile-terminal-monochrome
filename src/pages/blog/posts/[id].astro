@@ -304,8 +304,14 @@ const blogPostSchema = {
                 if (linkId === id) {
                     activeClasses.forEach((cls) => link.classList.add(cls));
                     mutedClasses.forEach((cls) => link.classList.remove(cls));
-                    if (link.closest('aside')) {
-                        link.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                    const asideNav = link.closest('nav');
+                    if (asideNav && asideNav.scrollHeight > asideNav.clientHeight) {
+                        const linkTop = (link as HTMLElement).offsetTop;
+                        const navTop = asideNav.scrollTop;
+                        const navHeight = asideNav.clientHeight;
+                        if (linkTop < navTop || linkTop > navTop + navHeight - 32) {
+                            asideNav.scrollTop = linkTop - navHeight / 2;
+                        }
                     }
                 } else {
                     activeClasses.forEach((cls) => link.classList.remove(cls));
