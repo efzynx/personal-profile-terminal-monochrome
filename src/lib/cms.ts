@@ -368,15 +368,15 @@ export async function saveFaviconImage(filename: string, buffer: Buffer, token?:
 
 // --- POSTS MANAGEMENT ---
 
-export async function listPosts(token?: string): Promise<PostItem[]> {
+export async function listPosts(token?: string, includeDrafts: boolean = false): Promise<PostItem[]> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('draft', false)
-        .order('pub_date', { ascending: false });
+      let query = supabase.from('posts').select('*');
+      if (!includeDrafts) {
+        query = query.eq('draft', false);
+      }
+      const { data, error } = await query.order('pub_date', { ascending: false });
       if (data && !error) {
         return data.map((item: any) => ({
           slug: item.slug,
@@ -406,7 +406,9 @@ export async function listPosts(token?: string): Promise<PostItem[]> {
           const raw = await fs.promises.readFile(filePath, 'utf-8');
           const { frontmatter, content } = parseFrontmatter(raw);
           const slug = file.replace(/\.(md|mdx)$/, '');
-          posts.push({ slug, frontmatter, content });
+          if (includeDrafts || !frontmatter.draft) {
+            posts.push({ slug, frontmatter, content });
+          }
         }
       }
       return posts.sort((a, b) => new Date(b.frontmatter.pubDate).getTime() - new Date(a.frontmatter.pubDate).getTime());

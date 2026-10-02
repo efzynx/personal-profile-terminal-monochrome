@@ -18,7 +18,7 @@ const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
 let posts = [];
 let fetchError = '';
 try {
-  posts = await listPosts(session.token);
+  posts = await listPosts(session.token, true);
 } catch (err: any) {
   fetchError = err.message || 'Gagal memuat daftar artikel';
 }

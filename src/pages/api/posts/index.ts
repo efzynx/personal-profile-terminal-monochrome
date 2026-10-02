@@ -4,12 +4,14 @@ import { listPosts, savePost } from '../../../lib/cms';
 import { sanitizeHtml } from '../../../lib/sanitize';
 import { submitToIndexNow } from '../../../lib/indexnow';
 
-export const GET: APIRoute = async ({ cookies }) => {
+export const GET: APIRoute = async ({ cookies, request }) => {
   // Auth sudah divalidasi di middleware (session cookie ATAU API key)
   const session = getSession(cookies);
+  const url = new URL(request.url);
+  const includeDrafts = url.searchParams.get('includeDrafts') === 'true' || Boolean(session);
 
   try {
-    const posts = await listPosts(session?.token);
+    const posts = await listPosts(session?.token, includeDrafts);
     return new Response(JSON.stringify({ posts }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
