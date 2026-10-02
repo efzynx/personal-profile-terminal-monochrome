@@ -151,14 +151,13 @@ try {
                 <p class="font-mono text-xs text-muted mt-1">Total {news.length} berita terdaftar.</p>
             </div>
 
-            <button
-                type="button"
-                id="btn-add-news"
-                class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2.5 transition-colors duration-0 cursor-[crosshair] flex items-center gap-2 shrink-0"
+            <a
+                href="/writer/dashboard/news/editor"
+                class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2.5 transition-colors duration-0 cursor-[crosshair] flex items-center gap-2 shrink-0 no-underline"
             >
                 <span class="material-symbols-outlined text-base">add</span>
                 <span>[ ADD NEWS ]</span>
-            </button>
+            </a>
         </header>
 
         {fetchError && (
@@ -166,75 +165,6 @@ try {
                 [ERR] {fetchError}
             </div>
         )}
-
-        <!-- Add/Edit News Form (hidden by default) -->
-        <div id="news-form-container" class="hidden border border-muted bg-surface p-6 flex flex-col gap-4">
-            <div class="flex items-center justify-between">
-                <h2 id="form-heading" class="font-mono text-sm font-bold text-primary uppercase">Add News Item</h2>
-                <button type="button" id="btn-cancel-form" class="font-mono text-xs text-accent hover:text-primary cursor-[crosshair]">[ CANCEL ]</button>
-            </div>
-
-            <input type="hidden" id="news-id" value="" />
-            <input type="hidden" id="news-published-at" value="" />
-
-            <div class="flex flex-col gap-1">
-                <label class="font-mono text-xs text-accent">Title *</label>
-                <input type="text" id="news-title" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Judul berita" />
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <div class="flex items-center justify-between">
-                    <label class="font-mono text-xs text-accent">Summary * <span class="text-muted">(maks. 200 karakter)</span></label>
-                    <span id="summary-counter" class="font-mono text-[10px] text-muted">0/200</span>
-                </div>
-                <textarea id="news-summary" rows="3" maxlength="200" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Ringkasan 1-2 kalimat"></textarea>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="flex flex-col gap-1">
-                    <label class="font-mono text-xs text-accent">Source URL *</label>
-                    <input type="url" id="news-source-url" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="https://..." />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="font-mono text-xs text-accent">Source Name *</label>
-                    <input type="text" id="news-source-name" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Reuters, TechCrunch, etc." />
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="flex flex-col gap-1">
-                    <label class="font-mono text-xs text-accent">Tags (comma separated)</label>
-                    <input type="text" id="news-tags" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="AI, cloud, devops" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="font-mono text-xs text-accent">Cover Image URL (optional)</label>
-                    <input type="url" id="news-cover" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="https://..." />
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <label class="font-mono text-xs text-accent">Content — Markdown *</label>
-                <textarea id="news-content" rows="10" class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2" placeholder="Konten lengkap dalam format Markdown."></textarea>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <label class="flex items-center gap-2 font-mono text-xs text-accent cursor-[crosshair] select-none">
-                    <input type="checkbox" id="news-draft" class="bg-background border-muted text-primary focus:ring-0 cursor-[crosshair]" />
-                    Simpan sebagai draft (belum publish)
-                </label>
-            </div>
-
-            <div class="flex items-center gap-4 pt-2">
-                <button
-                    type="button"
-                    id="btn-save-news"
-                    class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2 transition-colors duration-0 cursor-[crosshair]"
-                >
-                    [ SAVE ]
-                </button>
-                <span id="form-status" class="font-mono text-xs text-accent"></span>
-            </div>
-        </div>
 
         <!-- News List -->
         <main class="flex flex-col gap-3 mt-2">
@@ -277,22 +207,12 @@ try {
                                 >
                                     [ View ]
                                 </a>
-                                <button
-                                    type="button"
-                                    data-edit-id={item.id}
-                                    data-edit-title={item.title}
-                                    data-edit-summary={item.summary}
-                                    data-edit-content={item.content || ''}
-                                    data-edit-source-url={item.sourceUrl}
-                                    data-edit-source-name={item.sourceName}
-                                    data-edit-tags={(item.tags || []).join(', ')}
-                                    data-edit-cover={item.coverImage || ''}
-                                    data-edit-draft={item.draft ? 'true' : 'false'}
-                                    data-edit-published-at={item.publishedAt}
-                                    class="text-primary hover:bg-surface border border-primary px-3 py-1.5 font-bold transition-colors cursor-[crosshair]"
+                                <a
+                                    href={`/writer/dashboard/news/editor?id=${item.id}`}
+                                    class="text-primary hover:bg-surface border border-primary px-3 py-1.5 font-bold transition-colors cursor-[crosshair] no-underline font-mono text-xs"
                                 >
                                     [ Edit ]
-                                </button>
+                                </a>
                                 <a
                                     href={item.sourceUrl}
                                     target="_blank"
@@ -330,120 +250,6 @@ try {
     <!-- Client-Side Scripts -->
     <script is:inline>
         document.addEventListener('DOMContentLoaded', function () {
-            var formContainer = document.getElementById('news-form-container');
-            var btnAdd = document.getElementById('btn-add-news');
-            var btnCancel = document.getElementById('btn-cancel-form');
-            var btnSave = document.getElementById('btn-save-news');
-            var formStatus = document.getElementById('form-status');
-            var summaryField = document.getElementById('news-summary');
-            var summaryCounter = document.getElementById('summary-counter');
-            var formHeading = document.getElementById('form-heading');
-
-            // Summary character counter
-            summaryField.addEventListener('input', function () {
-                var len = summaryField.value.length;
-                summaryCounter.textContent = len + '/200';
-                if (len > 180) {
-                    summaryCounter.className = 'font-mono text-[10px] text-red-400';
-                } else {
-                    summaryCounter.className = 'font-mono text-[10px] text-muted';
-                }
-            });
-
-            // Show form (Add mode)
-            btnAdd.addEventListener('click', function () {
-                formContainer.classList.remove('hidden');
-                btnAdd.classList.add('hidden');
-                formHeading.textContent = 'Add News Item';
-                document.getElementById('news-id').value = '';
-                document.getElementById('news-published-at').value = '';
-                document.getElementById('news-title').value = '';
-                document.getElementById('news-summary').value = '';
-                document.getElementById('news-content').value = '';
-                document.getElementById('news-source-url').value = '';
-                document.getElementById('news-source-name').value = '';
-                document.getElementById('news-tags').value = '';
-                document.getElementById('news-cover').value = '';
-                document.getElementById('news-draft').checked = false;
-                document.getElementById('summary-counter').textContent = '0/200';
-                formStatus.textContent = '';
-            });
-
-            // Hide form
-            btnCancel.addEventListener('click', function () {
-                formContainer.classList.add('hidden');
-                btnAdd.classList.remove('hidden');
-            });
-
-            // Save
-            btnSave.addEventListener('click', async function () {
-                var title = document.getElementById('news-title').value.trim();
-                var summary = document.getElementById('news-summary').value.trim();
-                var content = document.getElementById('news-content').value.trim();
-                var sourceUrl = document.getElementById('news-source-url').value.trim();
-                var sourceName = document.getElementById('news-source-name').value.trim();
-                var tagsRaw = document.getElementById('news-tags').value.trim();
-                var coverImage = document.getElementById('news-cover').value.trim();
-                var id = document.getElementById('news-id').value.trim();
-                var draft = document.getElementById('news-draft').checked;
-
-                if (!title || !summary || !content || !sourceUrl || !sourceName) {
-                    formStatus.textContent = '[ERR] Title, Summary, Content, Source URL, dan Source Name wajib diisi.';
-                    formStatus.className = 'font-mono text-xs text-red-400';
-                    return;
-                }
-
-                if (summary.length > 200) {
-                    formStatus.textContent = '[ERR] Summary maksimal 200 karakter.';
-                    formStatus.className = 'font-mono text-xs text-red-400';
-                    return;
-                }
-
-                var tags = tagsRaw ? tagsRaw.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
-
-                btnSave.disabled = true;
-                btnSave.textContent = '[ SAVING... ]';
-                formStatus.textContent = '';
-
-                try {
-                    var existingPublishedAt = document.getElementById('news-published-at').value;
-                    var publishedAt = existingPublishedAt || new Date().toISOString();
-
-                    var payload = {
-                        title: title,
-                        summary: summary,
-                        content: content,
-                        sourceUrl: sourceUrl,
-                        sourceName: sourceName,
-                        tags: tags,
-                        coverImage: coverImage || undefined,
-                        draft: draft,
-                        publishedAt: publishedAt,
-                    };
-                    if (id) payload.id = id;
-
-                    var res = await fetch('/api/news', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                    });
-                    var data = await res.json();
-
-                    if (res.ok && data.success) {
-                        window.location.reload();
-                    } else {
-                        formStatus.textContent = '[ERR] ' + (data.error || 'Gagal menyimpan');
-                        formStatus.className = 'font-mono text-xs text-red-400';
-                    }
-                } catch (err) {
-                    formStatus.textContent = '[ERR] Koneksi gagal.';
-                    formStatus.className = 'font-mono text-xs text-red-400';
-                }
-
-                btnSave.disabled = false;
-                btnSave.textContent = '[ SAVE ]';
-            });
-
             // Delete
             var deleteButtons = document.querySelectorAll('[data-delete-id]');
             deleteButtons.forEach(function (btn) {
@@ -483,36 +289,6 @@ try {
                         btn.disabled = false;
                         btn.textContent = '[ Delete ]';
                     }
-                });
-            });
-
-            // Edit
-            var editButtons = document.querySelectorAll('[data-edit-id]');
-            editButtons.forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    formContainer.classList.remove('hidden');
-                    btnAdd.classList.add('hidden');
-                    formHeading.textContent = 'Edit News Item';
-                    formStatus.textContent = '';
-
-                    document.getElementById('news-id').value = btn.getAttribute('data-edit-id') || '';
-                    document.getElementById('news-published-at').value = btn.getAttribute('data-edit-published-at') || '';
-                    document.getElementById('news-title').value = btn.getAttribute('data-edit-title') || '';
-                    document.getElementById('news-summary').value = btn.getAttribute('data-edit-summary') || '';
-                    document.getElementById('news-content').value = btn.getAttribute('data-edit-content') || '';
-                    document.getElementById('news-source-url').value = btn.getAttribute('data-edit-source-url') || '';
-                    document.getElementById('news-source-name').value = btn.getAttribute('data-edit-source-name') || '';
-                    document.getElementById('news-tags').value = btn.getAttribute('data-edit-tags') || '';
-                    document.getElementById('news-cover').value = btn.getAttribute('data-edit-cover') || '';
-                    document.getElementById('news-draft').checked = btn.getAttribute('data-edit-draft') === 'true';
-
-                    // Update summary counter
-                    var len = (btn.getAttribute('data-edit-summary') || '').length;
-                    summaryCounter.textContent = len + '/200';
-                    summaryCounter.className = len > 180 ? 'font-mono text-[10px] text-red-400' : 'font-mono text-[10px] text-muted';
-
-                    // Scroll to form
-                    formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
         });

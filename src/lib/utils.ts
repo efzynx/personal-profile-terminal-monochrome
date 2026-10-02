@@ -103,6 +103,17 @@ export function stripFirstImage(content?: string, targetUrl?: string): string {
 }
 
 /**
+ * Generates a short slug for a blog post in the format post-YYYYMMDD-xxxxxx.
+ * Safe to call on both server and client side.
+ */
+export function generatePostSlug(): string {
+  const now = new Date();
+  const ts = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.random().toString(36).substring(2, 8).padEnd(6, '0');
+  return `post-${ts}-${rand}`;
+}
+
+/**
  * Checks if an image URL is safe and valid to be used as Open Graph image (social preview).
  * Rejects domains known to block social crawlers (e.g. Wikimedia 403), data URLs, and SVGs.
  */

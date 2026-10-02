@@ -1,10 +1,10 @@
 ---
-import '../../../styles/global.css';
-import { getSession } from '../../../lib/auth';
-import { getPost, getProfileData } from '../../../lib/cms';
-import { generatePostSlug } from '../../../lib/utils';
-import TerminalModal from '../../../components/TerminalModal.astro';
-import ThemeToggle from '../../../components/ThemeToggle.astro';
+import '../../../../styles/global.css';
+import { getSession } from '../../../../lib/auth';
+import { getNewsItem, getProfileData as _getProfileData } from '../../../../lib/news';
+import { getProfileData } from '../../../../lib/cms';
+import TerminalModal from '../../../../components/TerminalModal.astro';
+import ThemeToggle from '../../../../components/ThemeToggle.astro';
 
 const session = getSession(Astro.cookies);
 if (!session) {
@@ -12,30 +12,42 @@ if (!session) {
 }
 
 const profile = await getProfileData(session.token);
-const activeFavicon = profile.faviconUrl || "/favicon.svg";
+const activeFavicon = profile.faviconUrl || '/favicon.svg';
 const isSvgFavicon = activeFavicon.endsWith('.svg');
+const promptPrefix = profile.terminalPrompt || `${session.user}@tux`;
 
-const targetSlug = Astro.url.searchParams.get('slug');
-let existingPost = null;
+// Determine mode: edit or add
+const targetId = Astro.url.searchParams.get('id');
+let existingItem = null;
 
-if (targetSlug) {
+if (targetId) {
   try {
-    existingPost = await getPost(targetSlug, session.token);
+    existingItem = await getNewsItem(targetId);
   } catch (e) {
-    console.error('Error fetching post for edit:', e);
+    console.error('Error fetching news item for edit:', e);
   }
 }
 
-const isEditMode = Boolean(existingPost);
-const defaultTitle = existingPost ? existingPost.frontmatter.title : '';
-const defaultSlug = existingPost ? existingPost.slug : generatePostSlug();
-const defaultDescription = existingPost ? existingPost.description || existingPost.frontmatter.description || '' : '';
-const defaultCategory = existingPost ? existingPost.frontmatter.category || 'General' : 'General';
-const defaultPubDate = existingPost ? existingPost.frontmatter.pubDate : new Date().toISOString().split('T')[0];
-const defaultTags = existingPost && existingPost.frontmatter.tags ? existingPost.frontmatter.tags.join(', ') : '';
-const defaultDraft = existingPost ? existingPost.frontmatter.draft : false;
-const defaultCoverImage = existingPost ? existingPost.frontmatter.coverImage || '' : '';
-const defaultContent = existingPost ? existingPost.content : '';
+const isEditMode = Boolean(existingItem);
+
+// Generate a new news ID for add mode (server-side)
+function generateNewsId(): string {
+  const now = new Date();
+  const ts = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.random().toString(36).substring(2, 8).padEnd(6, '0');
+  return `news-${ts}-${rand}`;
+}
+
+const defaultId = existingItem ? existingItem.id : generateNewsId();
+const defaultTitle = existingItem ? existingItem.title : '';
+const defaultSourceName = existingItem ? existingItem.sourceName : '';
+const defaultSourceUrl = existingItem ? existingItem.sourceUrl : '';
+const defaultSummary = existingItem ? existingItem.summary : '';
+const defaultTags = existingItem && existingItem.tags ? existingItem.tags.join(', ') : '';
+const defaultCover = existingItem ? (existingItem.coverImage || '') : '';
+const defaultDraft = existingItem ? existingItem.draft : true;
+const defaultContent = existingItem ? existingItem.content : '';
+const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().toISOString();
 ---
 
 <!doctype html>
@@ -43,7 +55,7 @@ const defaultContent = existingPost ? existingPost.content : '';
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{isEditMode ? `Edit: ${defaultTitle}` : 'Create New Post'} — Writer Editor</title>
+    <title>{isEditMode ? `Edit News: ${defaultTitle}` : 'Add News Item'} — Writer</title>
     {isSvgFavicon ? (
         <link rel="icon" type="image/svg+xml" href={activeFavicon} />
     ) : (
@@ -258,200 +270,179 @@ const defaultContent = existingPost ? existingPost.content : '';
 <body class="min-h-screen bg-background text-text flex justify-center pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-16 md:pb-24 px-5 sm:px-8 md:px-12 lg:px-16">
     <div class="w-full max-w-7xl flex flex-col gap-6">
 
-        <!-- Nav -->
-        <nav class="flex items-center justify-between border-b border-muted pb-4 font-mono text-sm">
+        <!-- Top Nav Bar -->
+        <nav class="flex flex-wrap items-center justify-between gap-4 font-mono text-sm border-b border-muted pb-4">
             <div class="flex items-center gap-2 text-accent">
                 <span class="material-symbols-outlined text-[16px] text-primary">edit_note</span>
-                <a href="/writer/dashboard" class="hover:text-primary no-underline text-accent">dashboard</a>
+                <a href="/writer/dashboard/news" class="hover:text-primary no-underline text-accent">news</a>
                 <span>/</span>
-                <span class="text-primary font-bold">{isEditMode ? `edit [${defaultSlug}]` : 'new-post'}</span>
+                <span class="text-primary font-bold">{isEditMode ? `edit [${defaultId}]` : 'new-item'}</span>
             </div>
 
             <div class="flex items-center gap-4 text-xs">
-                <!-- Theme Selector -->
                 <ThemeToggle />
 
+                <div class="flex items-center gap-2 text-accent border border-muted px-3 py-1">
+                    {session.avatarUrl && <img src={session.avatarUrl} alt="User" class="w-4 h-4 rounded-full" />}
+                    <span>user: <strong class="text-primary">{session.user}</strong></span>
+                </div>
+
                 <a
-                    href="/writer/dashboard"
+                    href="/writer/dashboard/news"
                     class="font-mono text-xs text-accent hover:text-text border border-muted px-3 py-1.5 no-underline cursor-[crosshair]"
                 >
-                    &lt;-- Cancel &amp; Return
+                    &lt;-- [ CANCEL / BACK ]
                 </a>
             </div>
         </nav>
 
-        <!-- Form Box -->
-        <form id="editor-form" class="flex flex-col gap-6">
-            <input type="hidden" id="oldSlug" value={defaultSlug} />
+        <!-- Header Block -->
+        <header class="border-b border-muted pb-4">
+            <h1 class="font-mono text-2xl md:text-3xl font-bold text-primary tracking-tight uppercase">
+                {isEditMode ? 'Edit News Item' : 'Add News Item'}
+            </h1>
+            <p class="font-mono text-xs text-muted mt-1">
+                {isEditMode ? `Mengedit: ${defaultId}` : `ID baru: ${defaultId}`}
+            </p>
+        </header>
 
-            <!-- Action Bar Top -->
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface border border-muted p-4">
-                <div class="flex items-center gap-2 font-mono text-xs text-accent">
-                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
-                    <span>Status: <strong id="status-indicator" class="text-primary">{isEditMode ? 'EDITING EXISTING POST' : 'DRAFTING NEW POST'}</strong></span>
-                </div>
+        <!-- Alert Box -->
+        <div id="alert-box" class="hidden border p-4 font-mono text-xs"></div>
 
-                <div class="flex items-center gap-3">
-                    <button
-                        type="button"
-                        id="btn-upload-trigger"
-                        class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-primary px-3 py-2 cursor-[crosshair] flex items-center gap-1.5"
-                    >
-                        <span class="material-symbols-outlined text-base">image</span>
-                        <span>[ UPLOAD IMAGE ]</span>
-                    </button>
-                    <input type="file" id="image-file-input" accept="image/*" class="hidden" />
-
-                    <button
-                        type="submit"
-                        id="btn-save"
-                        class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-6 py-2 transition-colors cursor-[crosshair] flex items-center gap-2"
-                    >
-                        <span class="material-symbols-outlined text-base">save</span>
-                        <span>[ COMMIT / SAVE POST ]</span>
-                    </button>
-                </div>
+        <!-- Action Bar -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface border border-muted p-4">
+            <div class="flex items-center gap-2 font-mono text-xs text-accent">
+                <span class="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
+                <span>Status: <strong class="text-primary">{isEditMode ? 'EDITING EXISTING NEWS' : 'DRAFTING NEW NEWS'}</strong></span>
             </div>
+            <div class="flex items-center gap-3">
+                <button
+                    type="button"
+                    id="btn-save"
+                    class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-6 py-2 transition-colors duration-0 cursor-[crosshair] flex items-center gap-2"
+                >
+                    <span class="material-symbols-outlined text-base">save</span>
+                    <span>[ SAVE NEWS ]</span>
+                </button>
+            </div>
+        </div>
 
-            <div id="alert-box" class="hidden border p-4 font-mono text-xs"></div>
+        <!-- Form Fields -->
+        <div class="flex flex-col gap-4">
+            <!-- Hidden fields -->
+            <input type="hidden" id="news-id" value={defaultId} />
+            <input type="hidden" id="news-published-at" value={defaultPublishedAt} />
 
             <!-- Metadata Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface border border-muted p-6">
+
                 <!-- Title -->
                 <div class="flex flex-col gap-1.5 md:col-span-2">
-                    <label for="title" class="font-mono text-xs text-accent font-bold">TITLE *</label>
+                    <label for="news-title" class="font-mono text-xs text-accent font-bold">TITLE *</label>
                     <input
                         type="text"
-                        id="title"
-                        required
+                        id="news-title"
                         value={defaultTitle}
-                        placeholder="Contoh: Belajar Astro 6 & Tailwind CSS v4"
+                        placeholder="Judul berita"
                         class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
                     />
                 </div>
 
-                <!-- Slug with REROLL ID Button -->
+                <!-- ID (read-only) -->
+                <div class="flex flex-col gap-1.5 md:col-span-2">
+                    <label class="font-mono text-xs text-accent font-bold">ID (AUTO-GENERATED, READ-ONLY)</label>
+                    <input
+                        type="text"
+                        value={defaultId}
+                        readonly
+                        class="bg-background border border-muted font-mono text-xs text-muted px-3 py-2 cursor-not-allowed opacity-70"
+                    />
+                </div>
+
+                <!-- Source Name -->
                 <div class="flex flex-col gap-1.5">
+                    <label for="news-source-name" class="font-mono text-xs text-accent font-bold">SOURCE NAME *</label>
+                    <input
+                        type="text"
+                        id="news-source-name"
+                        value={defaultSourceName}
+                        placeholder="Reuters, TechCrunch, dll."
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
+                </div>
+
+                <!-- Source URL -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="news-source-url" class="font-mono text-xs text-accent font-bold">SOURCE URL *</label>
+                    <input
+                        type="url"
+                        id="news-source-url"
+                        value={defaultSourceUrl}
+                        placeholder="https://..."
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
+                </div>
+
+                <!-- Summary with char counter -->
+                <div class="flex flex-col gap-1.5 md:col-span-2">
                     <div class="flex items-center justify-between">
-                        <label for="slug" class="font-mono text-xs text-accent font-bold">SLUG (URL IDENTIFIER) *</label>
-                        <button
-                            type="button"
-                            id="btn-reroll-slug"
-                            class="font-mono text-[10px] text-accent hover:text-primary border border-muted hover:border-primary px-2 py-0.5 cursor-[crosshair] transition-colors"
-                            title="Hasilkan ID slug ringkas acak baru (post-YYYYMMDD-xxxxxx)"
-                        >
-                            [ REROLL ID ]
-                        </button>
+                        <label for="news-summary" class="font-mono text-xs text-accent font-bold">
+                            SUMMARY * <span class="text-muted font-normal">(maks. 200 karakter)</span>
+                        </label>
+                        <span id="summary-counter" class="font-mono text-[10px] text-muted">{defaultSummary.length}/200</span>
                     </div>
-                    <input
-                        type="text"
-                        id="slug"
-                        required
-                        value={defaultSlug}
-                        placeholder="post-YYYYMMDD-xxxxxx"
-                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
-                    />
-                </div>
-
-                <!-- Category -->
-                <div class="flex flex-col gap-1.5">
-                    <label for="category" class="font-mono text-xs text-accent font-bold">CATEGORY</label>
-                    <input
-                        type="text"
-                        id="category"
-                        value={defaultCategory}
-                        placeholder="General, Backend, Linux, DevOps"
-                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
-                    />
-                </div>
-
-                <!-- Pub Date -->
-                <div class="flex flex-col gap-1.5">
-                    <label for="pubDate" class="font-mono text-xs text-accent font-bold">PUBLICATION DATE</label>
-                    <input
-                        type="date"
-                        id="pubDate"
-                        value={defaultPubDate}
-                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
-                    />
+                    <textarea
+                        id="news-summary"
+                        rows="3"
+                        maxlength="200"
+                        placeholder="Ringkasan 1-2 kalimat"
+                        class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    >{defaultSummary}</textarea>
                 </div>
 
                 <!-- Tags -->
                 <div class="flex flex-col gap-1.5">
-                    <label for="tags" class="font-mono text-xs text-accent font-bold">TAGS (PISAH DENGAN KOMA)</label>
+                    <label for="news-tags" class="font-mono text-xs text-accent font-bold">TAGS (COMMA SEPARATED)</label>
                     <input
                         type="text"
-                        id="tags"
+                        id="news-tags"
                         value={defaultTags}
-                        placeholder="astro, tailwind, webdev"
+                        placeholder="AI, cloud, devops"
                         class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
                     />
                 </div>
 
-                <!-- Description -->
-                <div class="flex flex-col gap-1.5 md:col-span-2">
-                    <label for="description" class="font-mono text-xs text-accent font-bold">DESCRIPTION / SUMMARY</label>
-                    <textarea
-                        id="description"
-                        rows="2"
-                        placeholder="Ringkasan singkat isi artikel untuk SEO dan preview list..."
-                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 resize-y"
-                    >{defaultDescription}</textarea>
+                <!-- Cover Image -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="news-cover" class="font-mono text-xs text-accent font-bold">COVER IMAGE URL (OPTIONAL)</label>
+                    <input
+                        type="url"
+                        id="news-cover"
+                        value={defaultCover}
+                        placeholder="https://..."
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
+                    />
                 </div>
 
-                <!-- Cover Image & Options -->
-                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:col-span-2 pt-2 border-t border-muted">
-                    <div class="flex-1 flex flex-col gap-1 w-full">
-                        <label for="coverImage" class="font-mono text-xs text-accent font-bold">COVER IMAGE URL (OPTIONAL)</label>
-                        <input
-                            type="text"
-                            id="coverImage"
-                            value={defaultCoverImage}
-                            placeholder="/images/posts/sample.png"
-                            class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 w-full"
-                        />
-                    </div>
-
-                    <label class="flex items-center gap-2 cursor-pointer font-mono text-xs text-accent shrink-0 pt-4 md:pt-0">
+                <!-- Draft Checkbox -->
+                <div class="flex items-center gap-3 md:col-span-2 pt-2 border-t border-muted">
+                    <label class="flex items-center gap-2 font-mono text-xs text-accent cursor-[crosshair] select-none">
                         <input
                             type="checkbox"
-                            id="draft"
+                            id="news-draft"
                             checked={defaultDraft}
-                            class="bg-background border-muted text-primary focus:ring-0 w-4 h-4"
+                            class="bg-background border-muted text-primary focus:ring-0 cursor-[crosshair]"
                         />
-                        <span>Simpan sebagai Draft (Tidak dipublikasikan)</span>
+                        Simpan sebagai draft (belum publish)
                     </label>
                 </div>
             </div>
 
-            <!-- Content Area: Editor + Preview -->
+            <!-- Content Area: Editor + Live Preview -->
             <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between font-mono text-xs text-accent">
-                    <span class="font-bold">MARKDOWN CONTENT</span>
-                    <span>Supports Markdown formatting, code blocks & images</span>
-                </div>
-
-                <!-- Blog Template Toolbar -->
-                <div class="flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-accent bg-surface border border-muted p-2.5">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="font-bold text-primary">TEMPLATES:</span>
-                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="tutorial">
-                            [ Tutorial / Guide ]
-                        </button>
-                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="showcase">
-                            [ Project Showcase ]
-                        </button>
-                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="architecture">
-                            [ System Design ]
-                        </button>
-                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="note">
-                            [ Quick Note ]
-                        </button>
-                        <button type="button" class="btn-template text-accent hover:text-primary border border-muted hover:border-primary px-2.5 py-1 cursor-[crosshair] transition-colors" data-template="complex">
-                            [ Advanced MDX ]
-                        </button>
-                    </div>
-                    <span class="text-muted hidden md:inline">Klik template untuk mengisi outline otomatis</span>
+                    <span class="font-bold">CONTENT — MARKDOWN *</span>
+                    <span class="text-muted">Supports Markdown formatting</span>
                 </div>
 
                 <!-- Live Preview & Split-Pane Toolbar -->
@@ -495,7 +486,7 @@ const defaultContent = existingPost ? existingPost.content : '';
                             type="button"
                             id="btn-mobile-toggle"
                             class="lg:hidden flex items-center gap-1.5 font-mono text-xs px-3 py-1 border border-primary bg-primary text-background hover:bg-surface hover:text-primary transition-colors cursor-[crosshair] font-bold"
-                            title="Beralih ke pratinjau artikel"
+                            title="Beralih ke mode pratinjau"
                         >
                             <span id="mobile-toggle-icon">👁️</span>
                             <span id="mobile-toggle-text">PREVIEW</span>
@@ -521,7 +512,7 @@ const defaultContent = existingPost ? existingPost.content : '';
                         </div>
                         <textarea
                             id="content"
-                            placeholder="Tulis artikel blog Anda di sini menggunakan format Markdown..."
+                            placeholder="Konten lengkap berita dalam format Markdown..."
                             class="w-full flex-1 min-h-[450px] lg:min-h-0 bg-transparent border-0 focus:outline-none focus:ring-0 font-mono text-sm text-text p-4 resize-none leading-relaxed overflow-y-auto"
                         >{defaultContent}</textarea>
                     </div>
@@ -540,7 +531,7 @@ const defaultContent = existingPost ? existingPost.content : '';
                         <div class="flex items-center justify-between font-mono text-[11px] text-accent px-4 py-1.5 border-b border-muted bg-surface/50">
                             <span class="flex items-center gap-1.5 font-bold text-primary">
                                 <span class="material-symbols-outlined text-[14px]">visibility</span>
-                                <span>LIVE ARTICLE PREVIEW</span>
+                                <span>LIVE NEWS PREVIEW</span>
                             </span>
                             <span id="preview-meta" class="text-muted text-[10px]">0 words</span>
                         </div>
@@ -553,20 +544,43 @@ const defaultContent = existingPost ? existingPost.content : '';
                     </div>
                 </div>
             </div>
-        </form>
+
+            <!-- Bottom Actions -->
+            <div class="flex items-center gap-4 pt-2">
+                <button
+                    type="button"
+                    id="btn-save-bottom"
+                    class="font-mono text-sm font-bold text-background bg-primary hover:bg-surface hover:text-primary border border-primary px-5 py-2 transition-colors duration-0 cursor-[crosshair]"
+                >
+                    [ SAVE ]
+                </button>
+                <a
+                    href="/writer/dashboard/news"
+                    class="font-mono text-xs text-accent hover:text-primary border border-muted hover:border-accent px-4 py-2 no-underline cursor-[crosshair] transition-colors duration-0"
+                >
+                    [ CANCEL ]
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer Nav -->
+        <div class="border-t border-muted pt-4 mt-4 flex items-center justify-between font-mono text-xs text-accent">
+            <a
+                href="/writer/dashboard/news"
+                class="hover:text-primary transition-colors duration-0 cursor-[crosshair] no-underline"
+            >
+                &lt;-- cd ~/writer/dashboard/news
+            </a>
+            <span class="text-muted">news_editor</span>
+        </div>
     </div>
 
     <!-- Client-Side Script -->
     <script is:inline>
         document.addEventListener('DOMContentLoaded', function () {
-            var titleInput = document.getElementById('title');
-            var slugInput = document.getElementById('slug');
-            var btnRerollSlug = document.getElementById('btn-reroll-slug');
-            var editorForm = document.getElementById('editor-form');
-            var btnSave = document.getElementById('btn-save');
+            var summaryField = document.getElementById('news-summary');
+            var summaryCounter = document.getElementById('summary-counter');
             var alertBox = document.getElementById('alert-box');
-            var btnUploadTrigger = document.getElementById('btn-upload-trigger');
-            var imageFileInput = document.getElementById('image-file-input');
             var contentTextarea = document.getElementById('content');
 
             var splitContainer = document.getElementById('split-container');
@@ -578,20 +592,16 @@ const defaultContent = existingPost ? existingPost.content : '';
             var charWordCounter = document.getElementById('char-word-counter');
             var btnMobileToggle = document.getElementById('btn-mobile-toggle');
 
-            // --- 1. Short Slug Reroll Handler ---
-            function generateClientSlug() {
-                var now = new Date();
-                var ts = now.toISOString().slice(0, 10).replace(/-/g, '');
-                var rand = Math.random().toString(36).substring(2, 8).padEnd(6, '0');
-                return 'post-' + ts + '-' + rand;
-            }
-
-            if (btnRerollSlug) {
-                btnRerollSlug.addEventListener('click', function () {
-                    slugInput.value = generateClientSlug();
-                    slugInput.focus();
-                });
-            }
+            // --- 1. Summary character counter ---
+            summaryField.addEventListener('input', function () {
+                var len = summaryField.value.length;
+                summaryCounter.textContent = len + '/200';
+                if (len > 180) {
+                    summaryCounter.className = 'font-mono text-[10px] text-red-400';
+                } else {
+                    summaryCounter.className = 'font-mono text-[10px] text-muted';
+                }
+            });
 
             // --- 2. Marked Parser Setup ---
             var markedParser = null;
@@ -834,124 +844,60 @@ const defaultContent = existingPost ? existingPost.content : '';
             initMarked();
             updateLivePreview();
 
-            // --- 8. Blog Templates Handler ---
-            var templates = {
-                tutorial: "## Overview\nRingkasan singkat mengenai topik tutorial ini dan masalah yang akan diselesaikan.\n\n## Prerequisites\n- Node.js >= 18\n- Pemahaman dasar TypeScript / Astro\n\n## Langkah-Langkah Implementasi\n\n### 1. Instalasi & Setup\n```bash\nnpm install package-name\n```\n\n### 2. Konfigurasi\nPenjelasan konfigurasi dan kode utama.\n\n### 3. Contoh Kode\n```typescript\n// Tulis implementasi kode di sini\n```\n\n## Pengujian & Verifikasi\nCara menjalankan dan memverifikasi hasilnya.\n\n## Ringkasan\nKesimpulan dan rangkuman poin penting.",
-                showcase: "## Pengenalan Proyek\nDeskripsi singkat mengenai proyek yang dibuat dan keunggulannya.\n\n## Fitur Utama\n- **Fitur A**: Deskripsi fitur A.\n- **Fitur B**: Deskripsi fitur B.\n- **Fitur C**: Deskripsi performa & desain.\n\n## Tech Stack\n- **Framework**: Astro 5\n- **Styling**: Tailwind CSS\n- **Database**: Supabase (PostgreSQL)\n\n## Tangkapan Layar & Arsitektur\n![Project Preview](/images/posts/sample.png)\n\n## Uji Coba & Demo\nLink menuju live demo atau repositori GitHub.",
-                architecture: "## Ringkasan Eksekutif\nLatar belakang masalah dan tujuan arsitektur sistem.\n\n## Diagram Arsitektur\n```\n[ Client ] ---> [ Astro SSR (Vercel) ] ---> [ Supabase PostgreSQL ]\n```\n\n## Keputusan Desain & Trade-offs\n- **Keputusan A**: Mengapa memilih metode A dibandingkan metode B.\n- **Keputusan B**: Dampak terhadap performa dan skalabilitas.\n\n## Hasil Benchmark\n- Latensi response: ~50ms\n- Overhead query database: Sangat minim\n\n## Pelajaran Yang Dipetik\nPembelajaran utama dan aspek yang dapat ditingkatkan.",
-                note: "## Konteks\nCatatan singkat mengenai temuan atau log harian.\n\n## Pengamatan\n- Pengamatan 1\n- Pengamatan 2\n\n## Kesimpulan\nLangkah selanjutnya atau tindak lanjut.",
-                complex: "## Arsitektur & Pengenalan Sistem\nPengujian format Markdown kompleks dengan berbagai komponen styling.\n\n> **Catatan Penting**: Gunakan kombinasi komponen ini untuk membuat tulisan teknis yang kaya visual.\n\n---\n\n## Perbandingan Performa Framework\n\n| Framework | Response Time | Memory Usage | SSR Support |\n| :--- | :---: | :---: | :---: |\n| **Astro 5** | ~12ms | **45 MB** | Full Dynamic |\n| Next.js 14 | ~45ms | 120 MB | Full Dynamic |\n| Nuxt 3 | ~38ms | 95 MB | Full Dynamic |\n\n---\n\n## Langkah Konfigurasi & Kode Utama\n\n```typescript\nimport { getProfileData, savePost } from '../lib/cms';\n\n// Mengambil data secara real-time dari Supabase PostgreSQL\nexport async function handlePublishPost(slug: string) {\n  console.log(`[CMS] Publishing post: ${slug}`);\n  const result = await savePost({\n    slug,\n    frontmatter: {\n      title: 'Advanced System Architecture',\n      pubDate: new Date().toISOString(),\n      category: 'DevOps',\n      tags: ['astro', 'supabase', 'linux']\n    },\n    content: 'Full markdown content here...'\n  });\n  return result;\n}\n```\n\n### Perintah Terminal & Shortcut Keyboard\nUntuk menjalankan server pengujian, tekan <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> atau jalankan perintah berikut:\n\n```bash\npnpm run dev --port 4321\n```\n\n---\n\n## Checklists & Status Task\n\n- [x] Konfigurasi Supabase PostgreSQL Database\n- [x] Setup Public Bucket `media` di Supabase Storage\n- [x] Integrasi Dynamic SSR dengan Astro `@astrojs/vercel`\n- [ ] Optimasi Caching Layer Edge CDN\n\n---\n\n## Kesimpulan\nFormat ini mendukung pemformatan tabel, blok kode multi-bahasa, shortcut keyboard `<kbd>`, checklist, serta elemen kutipan terminal."
-            };
+            // --- 8. Save & Alert Handlers ---
+            function showAlert(type, msg) {
+                alertBox.className = type === 'error'
+                    ? 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs'
+                    : 'border border-green-500/50 bg-green-500/10 text-green-400 p-4 font-mono text-xs';
+                alertBox.textContent = msg;
+                alertBox.classList.remove('hidden');
+                alertBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
 
-            document.querySelectorAll('.btn-template').forEach(function (btn) {
-                btn.addEventListener('click', async function () {
-                    var templateType = btn.getAttribute('data-template');
-                    var templateContent = templates[templateType];
-                    if (!templateContent) return;
+            async function doSave(btn) {
+                var title = document.getElementById('news-title').value.trim();
+                var summary = summaryField.value.trim();
+                var content = document.getElementById('content').value.trim();
+                var sourceUrl = document.getElementById('news-source-url').value.trim();
+                var sourceName = document.getElementById('news-source-name').value.trim();
+                var tagsRaw = document.getElementById('news-tags').value.trim();
+                var coverImage = document.getElementById('news-cover').value.trim();
+                var id = document.getElementById('news-id').value.trim();
+                var draft = document.getElementById('news-draft').checked;
+                var publishedAt = document.getElementById('news-published-at').value || new Date().toISOString();
 
-                    if (contentTextarea.value.trim().length > 0) {
-                        var confirmed = window.terminalConfirm
-                            ? await window.terminalConfirm('Apakah Anda yakin ingin menimpa isi editor dengan template ini?', 'KONFIRMASI TEMPLATE')
-                            : confirm('Apakah Anda yakin ingin menimpa isi editor dengan template ini?');
-                        if (!confirmed) {
-                            return;
-                        }
-                    }
-
-                    contentTextarea.value = templateContent;
-                    updateLivePreview();
-                });
-            });
-
-            // --- 9. Upload Image Logic ---
-            btnUploadTrigger.addEventListener('click', function () {
-                imageFileInput.click();
-            });
-
-            imageFileInput.addEventListener('change', async function () {
-                var file = imageFileInput.files[0];
-                if (!file) return;
-
-                btnUploadTrigger.disabled = true;
-                btnUploadTrigger.innerText = '[ UPLOADING... ]';
-
-                var formData = new FormData();
-                formData.append('file', file);
-
-                try {
-                    var res = await fetch('/api/upload', {
-                        method: 'POST',
-                        body: formData,
-                    });
-                    var data = await res.json();
-
-                    if (res.ok && data.url) {
-                        var imgMarkdown = '\n![' + file.name + '](' + data.url + ')\n';
-                        contentTextarea.value += imgMarkdown;
-                        updateLivePreview();
-                        if (window.terminalAlert) {
-                            await window.terminalAlert('Gambar berhasil diunggah! Syntax markdown telah disisipkan ke editor.', 'UPLOAD SUKSES');
-                        } else {
-                            alert('Gambar berhasil diunggah! Syntax markdown telah disisipkan ke editor.');
-                        }
-                    } else {
-                        var uploadErr = 'Gagal mengunggah gambar: ' + (data.error || 'Unknown error');
-                        if (window.terminalAlert) {
-                            await window.terminalAlert(uploadErr, 'UPLOAD GAGAL');
-                        } else {
-                            alert(uploadErr);
-                        }
-                    }
-                } catch (err) {
-                    if (window.terminalAlert) {
-                        await window.terminalAlert('Terjadi kesalahan koneksi saat mengunggah gambar.', 'KONEKSI ERROR');
-                    } else {
-                        alert('Error koneksi saat upload gambar.');
-                    }
-                } finally {
-                    btnUploadTrigger.disabled = false;
-                    btnUploadTrigger.innerText = '[ UPLOAD IMAGE ]';
-                    imageFileInput.value = '';
+                if (!title || !summary || !content || !sourceUrl || !sourceName) {
+                    showAlert('error', '[ERR] Title, Summary, Content, Source URL, dan Source Name wajib diisi.');
+                    return;
                 }
-            });
 
-            // --- 10. Submit Form Logic ---
-            editorForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-                btnSave.disabled = true;
-                btnSave.innerText = '[ SAVING... ]';
+                if (summary.length > 200) {
+                    showAlert('error', '[ERR] Summary maksimal 200 karakter.');
+                    return;
+                }
+
+                var tags = tagsRaw ? tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
+
+                btn.disabled = true;
+                var origText = btn.textContent;
+                btn.textContent = '[ SAVING... ]';
                 alertBox.classList.add('hidden');
 
-                var slug = slugInput.value.trim();
-                var oldSlug = document.getElementById('oldSlug').value;
-                var title = titleInput.value.trim();
-                var category = document.getElementById('category').value.trim();
-                var pubDate = document.getElementById('pubDate').value;
-                var tagsStr = document.getElementById('tags').value;
-                var description = document.getElementById('description').value.trim();
-                var coverImage = document.getElementById('coverImage').value.trim();
-                var draft = document.getElementById('draft').checked;
-                var content = contentTextarea.value;
-
-                var tags = tagsStr ? tagsStr.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
-
-                var payload = {
-                    slug: slug,
-                    oldSlug: oldSlug,
-                    frontmatter: {
-                        title: title,
-                        description: description,
-                        pubDate: pubDate,
-                        category: category,
-                        tags: tags,
-                        draft: draft,
-                        coverImage: coverImage || undefined,
-                    },
-                    content: content,
-                };
-
                 try {
-                    var res = await fetch('/api/posts', {
+                    var payload = {
+                        id: id,
+                        title: title,
+                        summary: summary,
+                        content: content,
+                        sourceUrl: sourceUrl,
+                        sourceName: sourceName,
+                        tags: tags,
+                        coverImage: coverImage || undefined,
+                        draft: draft,
+                        publishedAt: publishedAt,
+                    };
+
+                    var res = await fetch('/api/news', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload),
@@ -959,27 +905,28 @@ const defaultContent = existingPost ? existingPost.content : '';
                     var data = await res.json();
 
                     if (res.ok && data.success) {
-                        alertBox.className = 'border border-green-500/50 bg-green-500/10 text-green-400 p-4 font-mono text-xs';
-                        alertBox.innerText = '[ SUCCESS ] ' + (data.message || 'Postingan berhasil disimpan!');
-                        alertBox.classList.remove('hidden');
-
+                        showAlert('success', '[ SUCCESS ] News berhasil disimpan! Mengalihkan...');
                         setTimeout(function () {
-                            window.location.href = '/writer/dashboard';
+                            window.location.href = '/writer/dashboard/news';
                         }, 1000);
                     } else {
-                        alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
-                        alertBox.innerText = '[ ERR ] ' + (data.error || 'Gagal menyimpan artikel');
-                        alertBox.classList.remove('hidden');
-                        btnSave.disabled = false;
-                        btnSave.innerText = '[ COMMIT / SAVE POST ]';
+                        showAlert('error', '[ERR] ' + (data.error || 'Gagal menyimpan news.'));
+                        btn.disabled = false;
+                        btn.textContent = origText;
                     }
                 } catch (err) {
-                    alertBox.className = 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs';
-                    alertBox.innerText = '[ ERR ] Terjadi kesalahan jaringan saat menyimpan postingan.';
-                    alertBox.classList.remove('hidden');
-                    btnSave.disabled = false;
-                    btnSave.innerText = '[ COMMIT / SAVE POST ]';
+                    showAlert('error', '[ERR] Koneksi gagal.');
+                    btn.disabled = false;
+                    btn.textContent = origText;
                 }
+            }
+
+            document.getElementById('btn-save').addEventListener('click', function () {
+                doSave(this);
+            });
+
+            document.getElementById('btn-save-bottom').addEventListener('click', function () {
+                doSave(this);
             });
         });
     </script>
