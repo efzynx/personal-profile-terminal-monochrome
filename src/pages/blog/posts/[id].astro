@@ -163,7 +163,7 @@ const blogPostSchema = {
     schemaJsonLd={blogPostSchema}
     noindex={Boolean(post.frontmatter.draft)}
 >
-    <div class="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-12 relative">
+    <div class="flex flex-col lg:flex-row gap-8 lg:gap-12 relative">
         {toc.length > 0 && (
             <aside class="hidden lg:block w-64 shrink-0">
                 <nav class="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-4 font-mono text-xs border-r border-dashed border-muted/60">

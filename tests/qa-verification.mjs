@@ -272,7 +272,7 @@ const newsDetailFile = fs.readFileSync(path.join(cwd, 'src/pages/news/[id].astro
 for (const [name, content] of [['Blog Detail', blogDetailFile], ['News Detail', newsDetailFile]]) {
     // 2-column layout wrapper
     assert.ok(
-        content.includes('flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-12 relative'),
+        content.includes('flex flex-col lg:flex-row gap-8 lg:gap-12 relative'),
         `${name} must use responsive 2-column layout flex-col lg:flex-row`
     );
 
