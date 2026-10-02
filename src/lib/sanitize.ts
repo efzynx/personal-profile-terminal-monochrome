@@ -17,10 +17,84 @@ const GLOBAL_ALLOWED_ATTRS = new Set(['class', 'id', 'title']);
 
 const TAG_ALLOWED_ATTRS: Record<string, Set<string>> = {
   a: new Set(['href', 'target', 'rel', 'class', 'id', 'title']),
-  img: new Set(['src', 'alt', 'title', 'width', 'height', 'loading', 'class', 'id']),
+  img: new Set(['src', 'alt', 'title', 'width', 'height', 'loading', 'class', 'id', 'style']),
+  figure: new Set(['class', 'id', 'title', 'style']),
   th: new Set(['colspan', 'rowspan', 'align', 'class', 'id']),
   td: new Set(['colspan', 'rowspan', 'align', 'class', 'id']),
 };
+
+const ALLOWED_CSS_PROPERTIES = new Set([
+  'width',
+  'max-width',
+  'min-width',
+  'height',
+  'max-height',
+  'min-height',
+  'margin',
+  'margin-top',
+  'margin-bottom',
+  'margin-left',
+  'margin-right',
+  'display',
+  'text-align',
+  'float',
+  'clear',
+  'object-fit',
+  'object-position',
+]);
+
+/**
+ * Membersihkan deklarasi inline CSS style agar hanya memuat properti aman
+ * (seperti width, max-width, height, margin, display) dan memblokir keyword berbahaya
+ * (javascript:, expression, behavior, url, dsb).
+ */
+export function sanitizeStyle(rawStyle: string): string {
+  if (!rawStyle || typeof rawStyle !== 'string') return '';
+
+  // Hapus komentar CSS
+  const cleaned = rawStyle.replace(/\/\*[\s\S]*?\*\//g, '');
+  const declarations = cleaned.split(';');
+  const safeDeclarations: string[] = [];
+
+  for (const decl of declarations) {
+    const trimmedDecl = decl.trim();
+    if (!trimmedDecl) continue;
+
+    const colonIdx = trimmedDecl.indexOf(':');
+    if (colonIdx === -1) continue;
+
+    const prop = trimmedDecl.slice(0, colonIdx).trim().toLowerCase();
+    const val = trimmedDecl.slice(colonIdx + 1).trim();
+
+    if (!ALLOWED_CSS_PROPERTIES.has(prop)) {
+      continue;
+    }
+
+    const lowerVal = val.toLowerCase();
+    // Blokir keyword berbahaya dan karakter escape yang dapat mem-bypass filter
+    if (
+      lowerVal.includes('javascript:') ||
+      lowerVal.includes('expression') ||
+      lowerVal.includes('behavior') ||
+      lowerVal.includes('url') ||
+      lowerVal.includes('@import') ||
+      lowerVal.includes('-moz-binding') ||
+      lowerVal.includes('vbscript:') ||
+      lowerVal.includes('\\')
+    ) {
+      continue;
+    }
+
+    // Hanya izinkan karakter CSS standar yang aman
+    if (!/^[a-zA-Z0-9\s.,%_#()+-]+$/.test(val)) {
+      continue;
+    }
+
+    safeDeclarations.push(`${prop}: ${val}`);
+  }
+
+  return safeDeclarations.join('; ');
+}
 
 /**
  * Membersihkan konten HTML hasil render Markdown dari potensi serangan Stored XSS.
@@ -47,7 +121,7 @@ export function sanitizeArticleContent(html: string): string {
   );
 
   // 3. Filter setiap tag dan atributnya
-  return cleaned.replace(/<\/?([a-zA-Z0-9]+)(\s+[^>]*?)?(\/?)>/g, (fullMatch, tagName, rawAttrs, selfClose) => {
+  let sanitized = cleaned.replace(/<\/?([a-zA-Z0-9]+)(\s+[^>]*?)?(\/?)>/g, (fullMatch, tagName, rawAttrs, selfClose) => {
     const lowerTag = tagName.toLowerCase();
     if (!ALLOWED_TAGS.has(lowerTag)) {
       return '';
@@ -75,6 +149,24 @@ export function sanitizeArticleContent(html: string): string {
 
       // Blokir atribut yang tidak terdaftar dalam allowlist
       if (!allowedAttrsForTag.has(attrName) && !GLOBAL_ALLOWED_ATTRS.has(attrName)) continue;
+
+      // Penanganan khusus untuk atribut style pada tag figure dan img
+      if (attrName === 'style') {
+        if (lowerTag !== 'figure' && lowerTag !== 'img') {
+          continue;
+        }
+        const safeStyle = sanitizeStyle(attrVal);
+        if (!safeStyle) {
+          continue;
+        }
+        const escapedStyle = safeStyle
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        sanitizedAttrs.push(`style="${escapedStyle}"`);
+        continue;
+      }
 
       // Validasi protokol URL pada atribut href dan src
       if (attrName === 'href' || attrName === 'src') {
@@ -109,6 +201,11 @@ export function sanitizeArticleContent(html: string): string {
     const attrStr = sanitizedAttrs.length > 0 ? ' ' + sanitizedAttrs.join(' ') : '';
     return `<${lowerTag}${attrStr}${selfClose ? ' /' : ''}>`;
   });
+
+  // 4. Bersihkan pembungkus <p> otomatis di sekitar blok <figure> agar markup tetap semantik
+  sanitized = sanitized.replace(/<p>\s*((?:<figure\b[\s\S]*?<\/figure>\s*)+)<\/p>/gi, '$1');
+
+  return sanitized;
 }
 
 /**
