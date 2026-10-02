@@ -214,6 +214,12 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
             margin: 1.5rem 0;
             font-style: italic;
         }
+        .article-content figure {
+            margin: 1.75rem 0;
+        }
+        .article-content figure img {
+            margin: 0;
+        }
         .article-content img {
             max-width: 100%;
             height: auto;
@@ -491,6 +497,18 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
                             <span id="mobile-toggle-icon">👁️</span>
                             <span id="mobile-toggle-text">PREVIEW</span>
                         </button>
+
+                        <div class="h-4 w-px bg-muted hidden sm:block"></div>
+
+                        <!-- Image Cheat Generator Toolbar Button -->
+                        <button
+                            type="button"
+                            id="btn-cheat-image"
+                            class="btn-cheat-image flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary hover:bg-surface transition-colors cursor-[crosshair]"
+                            title="Format gambar markdown kustom (Cheat Tool)"
+                        >
+                            <span>[ 🖼️ CHEAT: IMG ]</span>
+                        </button>
                     </div>
 
                     <div class="flex items-center gap-4 text-xs font-mono text-muted">
@@ -603,14 +621,166 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
                 }
             });
 
-            // --- 2. Marked Parser Setup ---
+            // --- 2. Custom Markdown Image Formatter Logic (Identical to src/lib/markdown-image.ts) ---
+            var IMAGE_WIDTH_PRESETS = {
+                small: '240px',
+                medium: '480px',
+                large: '720px',
+                full: '100%'
+            };
+
+            var IMAGE_ALIGN_CLASS_MAP = {
+                center: 'items-center text-center',
+                left: 'items-start text-left',
+                right: 'items-end text-right'
+            };
+
+            function escapeHtml(str) {
+                return (str || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function escapeAttr(str) {
+                return (str || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            function sanitizeHref(url) {
+                if (!url || typeof url !== 'string') return '';
+                var trimmed = url.trim();
+                var lower = trimmed.toLowerCase();
+                if (
+                    lower.startsWith('javascript:') ||
+                    lower.startsWith('vbscript:') ||
+                    (lower.startsWith('data:') && !lower.startsWith('data:image/'))
+                ) {
+                    return '';
+                }
+                return escapeAttr(trimmed);
+            }
+
+            function parseImageSyntax(text, title) {
+                var rawText = (text || '').trim();
+                var align = 'center';
+                var width = undefined;
+                var caption = undefined;
+
+                var textWithoutCaption = rawText;
+                var captionRegex = /(?:^|\|)\s*caption=(?:"([^"]*)"|'([^']*)'|([^|]+?))\s*(?=\||$)/i;
+                var captionMatch = rawText.match(captionRegex);
+                if (captionMatch) {
+                    var rawCap = (captionMatch[1] || captionMatch[2] || captionMatch[3] || '').trim();
+                    if (rawCap) {
+                        caption = rawCap;
+                    }
+                    textWithoutCaption = rawText.replace(captionRegex, '|').trim();
+                }
+
+                if (!caption && title && typeof title === 'string' && title.trim()) {
+                    caption = title.trim();
+                }
+
+                if (!rawText.includes('|')) {
+                    return {
+                        cleanAlt: rawText,
+                        align: align,
+                        width: width,
+                        caption: caption
+                    };
+                }
+
+                var rawTokens = textWithoutCaption.split('|').map(function (t) { return t.trim(); });
+                var candidateAlt = rawTokens[0] || '';
+                var optionTokens = rawTokens.slice(1);
+
+                for (var i = 0; i < optionTokens.length; i++) {
+                    var token = optionTokens[i];
+                    if (!token) continue;
+                    var lower = token.toLowerCase().replace(/^(?:align|width)\s*=\s*/i, '');
+
+                    if (lower === 'left' || lower === 'right' || lower === 'center') {
+                        align = lower;
+                        continue;
+                    }
+
+                    if (IMAGE_WIDTH_PRESETS[lower]) {
+                        width = IMAGE_WIDTH_PRESETS[lower];
+                        continue;
+                    }
+
+                    if (/^\d+(?:\.\d+)?(?:px|%|rem)$/i.test(lower)) {
+                        width = lower;
+                        continue;
+                    }
+
+                    if (/^caption\s*=/i.test(token)) {
+                        var capVal = token.replace(/^caption\s*=\s*/i, '').replace(/^["']|["']$/g, '').trim();
+                        if (capVal && !caption) {
+                            caption = capVal;
+                        }
+                        continue;
+                    }
+                }
+
+                if (candidateAlt) {
+                    var candidateLower = candidateAlt.toLowerCase().replace(/^(?:align|width)\s*=\s*/i, '');
+                    if (
+                        (candidateLower === 'left' || candidateLower === 'right' || candidateLower === 'center') &&
+                        align === 'center'
+                    ) {
+                        align = candidateLower;
+                        candidateAlt = '';
+                    } else if (IMAGE_WIDTH_PRESETS[candidateLower] && !width) {
+                        width = IMAGE_WIDTH_PRESETS[candidateLower];
+                        candidateAlt = '';
+                    } else if (/^\d+(?:\.\d+)?(?:px|%|rem)$/i.test(candidateLower) && !width) {
+                        width = candidateLower;
+                        candidateAlt = '';
+                    }
+                }
+
+                return {
+                    cleanAlt: candidateAlt,
+                    align: align,
+                    width: width,
+                    caption: caption
+                };
+            }
+
+            function renderCustomImage(href, text, title) {
+                var parsed = parseImageSyntax(text, title);
+                var safeHref = sanitizeHref(href);
+                var safeAlt = escapeAttr(parsed.cleanAlt);
+                var safeCaption = parsed.caption ? escapeHtml(parsed.caption) : '';
+
+                var containerClass = 'my-6 flex flex-col ' + (IMAGE_ALIGN_CLASS_MAP[parsed.align] || IMAGE_ALIGN_CLASS_MAP.center);
+                var imgClass = 'border border-muted bg-surface max-w-full h-auto';
+
+                var style = parsed.width
+                    ? 'width: ' + parsed.width + '; max-width: 100%; height: auto;'
+                    : 'max-width: 100%; height: auto;';
+
+                var figcaptionHtml = safeCaption
+                    ? '\n  <figcaption class="text-xs text-muted mt-2 italic font-mono">&gt; ' + safeCaption + '</figcaption>'
+                    : '';
+
+                return '<figure class="' + containerClass + '">\n  <img src="' + safeHref + '" alt="' + safeAlt + '" class="' + imgClass + '" style="' + style + '" loading="lazy" />' + figcaptionHtml + '\n</figure>';
+            }
+
+            // --- 3. Marked Parser Setup ---
             var markedParser = null;
             function initMarked() {
                 if (window.marked && window.marked.Marked) {
                     markedParser = new window.marked.Marked();
                     markedParser.use({
                         renderer: {
-                            heading: function (token) {
+                            heading(token) {
                                 var text = token.text;
                                 var level = token.depth;
                                 var cleanText = text.replace(/<[^>]*>/g, '');
@@ -620,7 +790,7 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
                                     .replace(/\s+/g, '-');
                                 return '<h' + level + ' id="' + slugId + '">' + text + '</h' + level + '>';
                             },
-                            table: function (token) {
+                            table(token) {
                                 var headerHtml = '';
                                 var bodyHtml = '';
                                 if (token.header) {
@@ -639,8 +809,14 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
                                 }
                                 return '<div class="table-container"><table class="markdown-table"><thead><tr>' + headerHtml + '</tr></thead><tbody>' + bodyHtml + '</tbody></table></div>';
                             },
-                            hr: function () {
+                            hr() {
                                 return '<hr class="terminal-hr" />';
+                            },
+                            image(token) {
+                                var href = (token && token.href) || '';
+                                var text = (token && token.text) || '';
+                                var title = (token && token.title) || null;
+                                return renderCustomImage(href, text, title);
                             }
                         }
                     });
@@ -844,7 +1020,207 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
             initMarked();
             updateLivePreview();
 
-            // --- 8. Save & Alert Handlers ---
+            // --- 8. Image Cheat Generator Modal Controller ---
+            var btnCheatImage = document.getElementById('btn-cheat-image');
+            var modalImageCheat = document.getElementById('modal-image-cheat');
+            var modalImageCheatClose = document.getElementById('modal-image-cheat-close');
+            var modalImageCheatCancel = document.getElementById('modal-image-cheat-cancel');
+            var cheatImgInsert = document.getElementById('cheat-img-insert');
+
+            var cheatImgUrl = document.getElementById('cheat-img-url');
+            var cheatImgAlt = document.getElementById('cheat-img-alt');
+            var cheatImgCaption = document.getElementById('cheat-img-caption');
+            var cheatImgCustomWrap = document.getElementById('cheat-img-custom-wrap');
+            var cheatImgCustomWidth = document.getElementById('cheat-img-custom-width');
+            var cheatImgCodePreview = document.getElementById('cheat-img-code-preview');
+            var cheatImgVisualPreview = document.getElementById('cheat-img-visual-preview');
+            var cheatImgUrlError = document.getElementById('cheat-img-url-error');
+
+            var currentCheatSize = 'medium';
+            var currentCheatAlign = 'center';
+
+            function updateCheatModalPreview() {
+                var url = (cheatImgUrl && cheatImgUrl.value || '').trim();
+                var alt = (cheatImgAlt && cheatImgAlt.value || '').trim();
+                var caption = (cheatImgCaption && cheatImgCaption.value || '').trim();
+                var size = currentCheatSize;
+
+                if (currentCheatSize === 'custom') {
+                    var customW = (cheatImgCustomWidth && cheatImgCustomWidth.value || '').trim();
+                    size = customW || '480px';
+                }
+
+                var parts = [];
+                if (alt) {
+                    parts.push(alt);
+                }
+                parts.push(currentCheatAlign);
+                parts.push(size);
+                if (caption) {
+                    parts.push('caption="' + caption.replace(/"/g, '&quot;') + '"');
+                }
+
+                var previewSyntax = '![' + parts.join(' | ') + '](' + (url || 'https://...') + ')';
+                if (cheatImgCodePreview) {
+                    cheatImgCodePreview.textContent = previewSyntax;
+                }
+
+                if (cheatImgVisualPreview) {
+                    if (!url) {
+                        cheatImgVisualPreview.innerHTML = '<span class="text-muted text-xs italic font-mono">[ Masukkan URL gambar di atas untuk melihat pratinjau visual ]</span>';
+                    } else {
+                        cheatImgVisualPreview.innerHTML = renderCustomImage(url, parts.join(' | '));
+                    }
+                }
+            }
+
+            function openCheatModal() {
+                if (!modalImageCheat) return;
+                modalImageCheat.classList.remove('hidden');
+                if (cheatImgUrlError) cheatImgUrlError.classList.add('hidden');
+                updateCheatModalPreview();
+                setTimeout(function () {
+                    if (cheatImgUrl) cheatImgUrl.focus();
+                }, 50);
+            }
+
+            function closeCheatModal() {
+                if (!modalImageCheat) return;
+                modalImageCheat.classList.add('hidden');
+            }
+
+            if (btnCheatImage) {
+                btnCheatImage.addEventListener('click', openCheatModal);
+            }
+
+            if (modalImageCheatClose) {
+                modalImageCheatClose.addEventListener('click', closeCheatModal);
+            }
+
+            if (modalImageCheatCancel) {
+                modalImageCheatCancel.addEventListener('click', closeCheatModal);
+            }
+
+            if (modalImageCheat) {
+                modalImageCheat.addEventListener('click', function (e) {
+                    if (e.target === modalImageCheat) {
+                        closeCheatModal();
+                    }
+                });
+            }
+
+            document.querySelectorAll('.btn-cheat-size').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var size = btn.getAttribute('data-size');
+                    currentCheatSize = size;
+                    document.querySelectorAll('.btn-cheat-size').forEach(function (b) {
+                        b.className = 'btn-cheat-size px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]';
+                    });
+                    btn.className = 'btn-cheat-size px-2.5 py-1 border border-primary bg-primary text-background font-bold transition-colors cursor-[crosshair]';
+
+                    if (size === 'custom') {
+                        if (cheatImgCustomWrap) {
+                            cheatImgCustomWrap.classList.remove('hidden');
+                            if (cheatImgCustomWidth) cheatImgCustomWidth.focus();
+                        }
+                    } else {
+                        if (cheatImgCustomWrap) {
+                            cheatImgCustomWrap.classList.add('hidden');
+                        }
+                    }
+                    updateCheatModalPreview();
+                });
+            });
+
+            document.querySelectorAll('.btn-cheat-align').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var align = btn.getAttribute('data-align');
+                    currentCheatAlign = align;
+                    document.querySelectorAll('.btn-cheat-align').forEach(function (b) {
+                        b.className = 'btn-cheat-align px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]';
+                    });
+                    btn.className = 'btn-cheat-align px-2.5 py-1 border border-primary bg-primary text-background font-bold transition-colors cursor-[crosshair]';
+                    updateCheatModalPreview();
+                });
+            });
+
+            if (cheatImgUrl) {
+                cheatImgUrl.addEventListener('input', function () {
+                    if (cheatImgUrlError && cheatImgUrl.value.trim()) {
+                        cheatImgUrlError.classList.add('hidden');
+                    }
+                    updateCheatModalPreview();
+                });
+            }
+
+            if (cheatImgAlt) {
+                cheatImgAlt.addEventListener('input', updateCheatModalPreview);
+            }
+
+            if (cheatImgCaption) {
+                cheatImgCaption.addEventListener('input', updateCheatModalPreview);
+            }
+
+            if (cheatImgCustomWidth) {
+                cheatImgCustomWidth.addEventListener('input', updateCheatModalPreview);
+            }
+
+            if (cheatImgInsert) {
+                cheatImgInsert.addEventListener('click', function () {
+                    var url = (cheatImgUrl && cheatImgUrl.value || '').trim();
+                    if (!url) {
+                        if (cheatImgUrlError) cheatImgUrlError.classList.remove('hidden');
+                        if (cheatImgUrl) cheatImgUrl.focus();
+                        return;
+                    }
+
+                    var alt = (cheatImgAlt && cheatImgAlt.value || '').trim();
+                    var caption = (cheatImgCaption && cheatImgCaption.value || '').trim();
+                    var size = currentCheatSize;
+                    if (currentCheatSize === 'custom') {
+                        var customW = (cheatImgCustomWidth && cheatImgCustomWidth.value || '').trim();
+                        size = customW || '480px';
+                    }
+
+                    var parts = [];
+                    if (alt) parts.push(alt);
+                    parts.push(currentCheatAlign);
+                    parts.push(size);
+                    if (caption) parts.push('caption="' + caption.replace(/"/g, '&quot;') + '"');
+
+                    var syntax = '![' + parts.join(' | ') + '](' + url + ')';
+
+                    var startPos = contentTextarea.selectionStart;
+                    var endPos = contentTextarea.selectionEnd;
+                    var curVal = contentTextarea.value;
+                    var before = curVal.substring(0, startPos);
+                    var after = curVal.substring(endPos);
+
+                    var prefix = (before.length > 0 && !before.endsWith('\n')) ? '\n\n' : (before.length > 0 && !before.endsWith('\n\n')) ? '\n' : '';
+                    var suffix = (!after.startsWith('\n')) ? '\n\n' : (!after.startsWith('\n\n')) ? '\n' : '';
+                    var inserted = prefix + syntax + suffix;
+
+                    contentTextarea.value = before + inserted + after;
+                    var newCursorPos = startPos + inserted.length;
+                    contentTextarea.selectionStart = newCursorPos;
+                    contentTextarea.selectionEnd = newCursorPos;
+                    contentTextarea.focus();
+
+                    // Memicu event input agar live preview langsung ter-render
+                    contentTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+                    closeCheatModal();
+                });
+            }
+
+            window.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && modalImageCheat && !modalImageCheat.classList.contains('hidden')) {
+                    e.preventDefault();
+                    closeCheatModal();
+                }
+            });
+
+            // --- 9. Save & Alert Handlers ---
             function showAlert(type, msg) {
                 alertBox.className = type === 'error'
                     ? 'border border-red-500/50 bg-red-500/10 text-red-400 p-4 font-mono text-xs'
@@ -930,6 +1306,220 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
             });
         });
     </script>
+
+    <!-- Modal Image Cheat Generator -->
+    <div
+        id="modal-image-cheat"
+        class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 hidden select-none"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-image-cheat-title"
+    >
+        <div
+            id="modal-image-cheat-card"
+            class="w-full max-w-2xl bg-surface border border-muted shadow-2xl flex flex-col font-mono text-xs max-h-[90vh] overflow-hidden"
+        >
+            <!-- Titlebar -->
+            <div class="flex items-center justify-between border-b border-muted px-4 py-2.5 bg-background select-none">
+                <div class="flex items-center gap-2">
+                    <span class="inline-block w-2 h-2 bg-primary"></span>
+                    <span id="modal-image-cheat-title" class="font-bold text-primary uppercase tracking-wider">
+                        &gt; cheat: markdown_image_formatter
+                    </span>
+                </div>
+                <button
+                    id="modal-image-cheat-close"
+                    type="button"
+                    class="text-muted hover:text-primary transition-colors cursor-[crosshair] px-1 font-bold"
+                    title="Tutup dialog"
+                >
+                    [X]
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-4 md:p-6 flex flex-col gap-4 overflow-y-auto bg-surface leading-relaxed text-text">
+                <!-- Direct Image URL (wajib) -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="cheat-img-url" class="font-bold text-primary flex items-center justify-between">
+                        <span>DIRECT IMAGE URL *</span>
+                        <span class="text-[10px] text-muted font-normal">Wajib diisi</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="cheat-img-url"
+                        placeholder="https://... atau /images/..."
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 w-full"
+                        required
+                    />
+                    <span id="cheat-img-url-error" class="text-red-400 text-[10px] hidden">&gt; URL gambar tidak boleh kosong!</span>
+                </div>
+
+                <!-- Alt Text / Deskripsi (opsional) -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="cheat-img-alt" class="font-bold text-primary flex items-center justify-between">
+                        <span>ALT TEXT / DESKRIPSI (OPTIONAL)</span>
+                        <span class="text-[10px] text-muted font-normal">Aksesibilitas &amp; SEO</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="cheat-img-alt"
+                        placeholder="Deskripsi singkat gambar..."
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 w-full"
+                    />
+                </div>
+
+                <!-- Size Preset -->
+                <div class="flex flex-col gap-1.5">
+                    <span class="font-bold text-primary">PILIHAN UKURAN (SIZE PRESET):</span>
+                    <div class="flex flex-wrap items-center gap-1.5" id="cheat-size-buttons">
+                        <button
+                            type="button"
+                            class="btn-cheat-size px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]"
+                            data-size="small"
+                        >
+                            [ S: 240px ]
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-cheat-size px-2.5 py-1 border border-primary bg-primary text-background font-bold transition-colors cursor-[crosshair]"
+                            data-size="medium"
+                        >
+                            [ M: 480px ]
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-cheat-size px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]"
+                            data-size="large"
+                        >
+                            [ L: 720px ]
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-cheat-size px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]"
+                            data-size="full"
+                        >
+                            [ Full: 100% ]
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-cheat-size px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]"
+                            data-size="custom"
+                        >
+                            [ Custom ]
+                        </button>
+                    </div>
+
+                    <!-- Custom Width Input (shown if Custom selected) -->
+                    <div id="cheat-img-custom-wrap" class="hidden mt-1.5 flex flex-col gap-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-accent">&gt; Custom Width:</span>
+                            <input
+                                type="text"
+                                id="cheat-img-custom-width"
+                                placeholder="misal: 360px, 50%, 25rem..."
+                                class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-1.5 flex-1"
+                            />
+                        </div>
+                        <span class="text-[10px] text-muted">&gt; Format yang didukung: [angka]px, [angka]%, atau [angka]rem</span>
+                    </div>
+                </div>
+
+                <!-- Alignment -->
+                <div class="flex flex-col gap-1.5">
+                    <span class="font-bold text-primary">POSISI / ALIGNMENT:</span>
+                    <div class="flex items-center gap-1.5" id="cheat-align-buttons">
+                        <button
+                            type="button"
+                            class="btn-cheat-align px-2.5 py-1 border border-primary bg-primary text-background font-bold transition-colors cursor-[crosshair]"
+                            data-align="center"
+                        >
+                            [ Center ]
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-cheat-align px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]"
+                            data-align="left"
+                        >
+                            [ Left ]
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-cheat-align px-2.5 py-1 border border-muted text-accent hover:border-primary hover:text-primary transition-colors cursor-[crosshair]"
+                            data-align="right"
+                        >
+                            [ Right ]
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Caption / Keterangan (opsional) -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="cheat-img-caption" class="font-bold text-primary flex items-center justify-between">
+                        <span>CAPTION / KETERANGAN (OPTIONAL)</span>
+                        <span class="text-[10px] text-muted font-normal">&lt;figcaption&gt;</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="cheat-img-caption"
+                        placeholder="Keterangan gambar (otomatis menjadi <figcaption>)..."
+                        class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 w-full"
+                    />
+                </div>
+
+                <!-- Live Mini Preview & Markdown Code Box -->
+                <div class="flex flex-col gap-2 pt-2 border-t border-muted">
+                    <div class="flex items-center justify-between font-mono text-[11px] text-accent">
+                        <span class="font-bold text-primary flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[14px]">preview</span>
+                            <span>LIVE MINI PREVIEW &amp; KODE MARKDOWN:</span>
+                        </span>
+                    </div>
+
+                    <!-- Code Output -->
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] text-muted">&gt; Markdown Output:</span>
+                        <div
+                            id="cheat-img-code-preview"
+                            class="bg-background border border-muted p-2.5 font-mono text-[11px] text-primary break-all select-all leading-relaxed"
+                        >
+                            ![Image | center | medium](https://...)
+                        </div>
+                    </div>
+
+                    <!-- Visual Render Preview -->
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] text-muted">&gt; Visual Preview:</span>
+                        <div
+                            id="cheat-img-visual-preview"
+                            class="bg-background border border-muted p-4 min-h-[140px] flex items-center justify-center overflow-x-auto"
+                        >
+                            <span class="text-muted text-xs italic font-mono">[ Masukkan URL gambar di atas untuk melihat pratinjau visual ]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="border-t border-muted px-4 py-3 bg-background flex items-center justify-end gap-3 font-mono text-xs select-none">
+                <button
+                    id="modal-image-cheat-cancel"
+                    type="button"
+                    class="border border-muted hover:border-primary text-accent hover:text-primary px-4 py-2 transition-colors cursor-[crosshair]"
+                >
+                    [ BATAL ]
+                </button>
+                <button
+                    id="cheat-img-insert"
+                    type="button"
+                    class="border border-primary bg-primary text-background hover:bg-background hover:text-primary font-bold px-5 py-2 transition-colors cursor-[crosshair] flex items-center gap-1.5"
+                >
+                    <span class="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                    <span>[ INSERT TO EDITOR ]</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <TerminalModal />
 </body>

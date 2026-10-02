@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { generatePostSlug } from '../src/lib/utils.ts';
+import { renderCustomImage, parseImageSyntax } from '../src/lib/markdown-image.ts';
+import { sanitizeArticleContent, sanitizeStyle } from '../src/lib/sanitize.ts';
+import { Marked } from 'marked';
 
 const cwd = process.cwd();
 
@@ -345,6 +348,241 @@ assert.deepEqual(extractedToc[3], { depth: 3, text: 'Token Session Cookies', id:
 
 console.log('✓ Heading extraction and slug normalization correctly handles h2, h3, and character escaping');
 
+// =========================================================================
+// TEST SUITE 7: Markdown Image Formatter, Sanitization, Cheat Modal & Marked Integration
+// =========================================================================
+console.log('\n[Suite 7] Testing Markdown Image Formatter, Sanitization, Cheat Modal & Marked Integration');
+
+// 7.1 Syntax Parsing & Options
+console.log('  -> 7.1 Testing parseImageSyntax across all alignment, preset & custom sizes, and caption styles');
+
+const syntaxCases = [
+    { input: 'Hero | center | small | caption="Center Small"', align: 'center', width: '240px', caption: 'Center Small' },
+    { input: 'Diagram | left | medium | caption="Left Medium"', align: 'left', width: '480px', caption: 'Left Medium' },
+    { input: 'Infographic | right | large | caption="Right Large"', align: 'right', width: '720px', caption: 'Right Large' },
+    { input: 'Full Banner | center | full', align: 'center', width: '100%', caption: undefined },
+    { input: 'Custom Px | left | 360px | caption="Custom 360px"', align: 'left', width: '360px', caption: 'Custom 360px' },
+    { input: 'Custom Percent | right | 50% | caption="Custom 50%"', align: 'right', width: '50%', caption: 'Custom 50%' },
+    { input: 'Custom Rem | center | 25rem | caption=\'Single Quote Caption\'', align: 'center', width: '25rem', caption: 'Single Quote Caption' },
+    { input: 'Unquoted | left | medium | caption=Simple text caption', align: 'left', width: '480px', caption: 'Simple text caption' },
+    { input: 'Title Fallback', align: 'center', width: undefined, caption: 'Title as Caption', title: 'Title as Caption' },
+    { input: 'Pure Alt Text No Options', align: 'center', width: undefined, caption: undefined },
+    { input: 'center | 480px', align: 'center', width: '480px', caption: undefined }
+];
+
+for (const c of syntaxCases) {
+    const res = parseImageSyntax(c.input, c.title);
+    assert.equal(res.align, c.align, `Alignment mismatch for "${c.input}"`);
+    assert.equal(res.width, c.width, `Width mismatch for "${c.input}"`);
+    assert.equal(res.caption, c.caption, `Caption mismatch for "${c.input}"`);
+}
+console.log('  ✓ parseImageSyntax correctly parses all combinations (center/left/right, small/medium/large/full/360px/50%, and caption formats)');
+
+// 7.2 Semantic Markup Rendering via renderCustomImage
+console.log('  -> 7.2 Testing renderCustomImage semantic HTML markup, terminal borders, alignment, and dimensions');
+
+// Test Center + Small
+const imgCenterSmall = renderCustomImage('https://example.com/small.png', 'Logo | center | small | caption="Small Logo"');
+assert.ok(imgCenterSmall.includes('<figure class="my-6 flex flex-col items-center text-center">'), 'Center alignment class must be items-center text-center');
+assert.ok(imgCenterSmall.includes('style="width: 240px; max-width: 100%; height: auto;"'), 'Small preset must render width: 240px');
+assert.ok(imgCenterSmall.includes('alt="Logo"'), 'Alt text properly escaped and rendered');
+assert.ok(imgCenterSmall.includes('src="https://example.com/small.png"'), 'Src properly rendered');
+assert.ok(imgCenterSmall.includes('class="border border-muted bg-surface max-w-full h-auto"'), 'Monochrome terminal border and surface class present');
+assert.ok(imgCenterSmall.includes('<figcaption class="text-xs text-muted mt-2 italic font-mono">&gt; Small Logo</figcaption>'), 'Figcaption properly rendered');
+
+// Test Left + Medium
+const imgLeftMedium = renderCustomImage('https://example.com/med.png', 'Chart | left | medium | caption="Medium Chart"');
+assert.ok(imgLeftMedium.includes('<figure class="my-6 flex flex-col items-start text-left">'), 'Left alignment class must be items-start text-left');
+assert.ok(imgLeftMedium.includes('style="width: 480px; max-width: 100%; height: auto;"'), 'Medium preset must render width: 480px');
+assert.ok(imgLeftMedium.includes('&gt; Medium Chart'), 'Figcaption text present');
+
+// Test Right + Large
+const imgRightLarge = renderCustomImage('https://example.com/large.png', 'Flow | right | large | caption="Large Flow"');
+assert.ok(imgRightLarge.includes('<figure class="my-6 flex flex-col items-end text-right">'), 'Right alignment class must be items-end text-right');
+assert.ok(imgRightLarge.includes('style="width: 720px; max-width: 100%; height: auto;"'), 'Large preset must render width: 720px');
+assert.ok(imgRightLarge.includes('&gt; Large Flow'), 'Figcaption text present');
+
+// Test Center + Full
+const imgCenterFull = renderCustomImage('https://example.com/full.png', 'Wide Banner | center | full');
+assert.ok(imgCenterFull.includes('style="width: 100%; max-width: 100%; height: auto;"'), 'Full preset must render width: 100%');
+assert.ok(!imgCenterFull.includes('<figcaption'), 'No figcaption rendered when caption is omitted');
+
+// Test Left + Custom 360px
+const imgCustom360 = renderCustomImage('https://example.com/custom360.png', 'Card | left | 360px | caption="Custom 360px Card"');
+assert.ok(imgCustom360.includes('<figure class="my-6 flex flex-col items-start text-left">'), 'Left alignment for 360px');
+assert.ok(imgCustom360.includes('style="width: 360px; max-width: 100%; height: auto;"'), 'Custom 360px style verified');
+assert.ok(imgCustom360.includes('&gt; Custom 360px Card'), 'Caption for 360px card verified');
+
+// Test Right + Custom 50%
+const imgCustom50 = renderCustomImage('https://example.com/custom50.png', 'Half Size | right | 50% | caption="50 Percent Width"');
+assert.ok(imgCustom50.includes('<figure class="my-6 flex flex-col items-end text-right">'), 'Right alignment for 50%');
+assert.ok(imgCustom50.includes('style="width: 50%; max-width: 100%; height: auto;"'), 'Custom 50% style verified');
+assert.ok(imgCustom50.includes('&gt; 50 Percent Width'), 'Caption for 50% width verified');
+
+// Test Default Responsive (No Size Specified)
+const imgDefaultResponsive = renderCustomImage('https://example.com/default.png', 'Responsive Image');
+assert.ok(imgDefaultResponsive.includes('style="max-width: 100%; height: auto;"'), 'Default image style is max-width: 100%; height: auto;');
+assert.ok(imgDefaultResponsive.includes('items-center text-center'), 'Default alignment is center');
+
+// Test Malicious URL escaping (XSS in URL)
+const imgMaliciousHref = renderCustomImage('javascript:alert(1)', 'XSS Image');
+assert.ok(imgMaliciousHref.includes('src=""'), 'javascript: href must be stripped');
+
+console.log('  ✓ renderCustomImage correctly renders semantic figure, monochrome borders, alignment, presets (S/M/L/Full), custom (360px/50%), and captions');
+
+// 7.3 Sanitizer Style Whitelist & Tag Validation in src/lib/sanitize.ts
+console.log('  -> 7.3 Testing HTML Sanitization: <figure>, <figcaption>, and inline style safety whitelist');
+
+// Verify style parser safety
+assert.equal(sanitizeStyle('width: 360px; max-width: 100%; height: auto;'), 'width: 360px; max-width: 100%; height: auto');
+assert.equal(sanitizeStyle('width: 50%; max-width: 100%; height: auto;'), 'width: 50%; max-width: 100%; height: auto');
+assert.equal(sanitizeStyle('width: expression(alert(1)); height: 100px;'), 'height: 100px', 'expression() must be stripped');
+assert.equal(sanitizeStyle('background: url(evil.png); width: 240px;'), 'width: 240px', 'url() must be stripped');
+assert.equal(sanitizeStyle('color: red; width: 100%; font-size: 20px;'), 'width: 100%', 'color and font-size must be stripped');
+assert.equal(sanitizeStyle('display: flex; margin: 0 auto; max-width: 100%'), 'display: flex; margin: 0 auto; max-width: 100%');
+assert.equal(sanitizeStyle('width: 100px; background-image: -moz-binding(evil.xml);'), 'width: 100px', '-moz-binding must be stripped');
+assert.equal(sanitizeStyle('width: 100px; @import "evil.css";'), 'width: 100px', '@import must be stripped');
+assert.equal(sanitizeStyle('width: 100px\\; evil: yes;'), '', 'Backslash escape must be rejected');
+
+// Verify full article sanitization
+const complexHtmlPayload = `
+<p><figure class="my-6 flex flex-col items-center text-center" style="display: flex; margin: 0 auto;">
+  <img src="https://example.com/test.png" alt="Test" class="border border-muted" style="width: 360px; max-width: 100%; height: auto;" loading="lazy" />
+  <figcaption class="text-xs text-muted mt-2 italic font-mono">&gt; Safe Caption</figcaption>
+</figure></p>
+<p style="color: red; width: 100px;" onclick="alert(1)">Paragraph with disallowed style & events</p>
+<figure style="width: 50%; behavior: url(xss.htc);">
+  <img src="https://example.com/50.png" alt="Half" style="width: 50%; color: blue;" onerror="alert(2)" />
+</figure>
+<script>alert("hacked")</script>
+<iframe src="evil.com"></iframe>
+`;
+
+const sanitizedResult = sanitizeArticleContent(complexHtmlPayload);
+assert.ok(sanitizedResult.includes('style="display: flex; margin: 0 auto"'), 'Figure allows safe display and margin style');
+assert.ok(sanitizedResult.includes('style="width: 360px; max-width: 100%; height: auto"'), 'Img allows safe width, max-width, height style');
+assert.ok(sanitizedResult.includes('style="width: 50%"'), 'Figure allows 50% width');
+assert.ok(sanitizedResult.includes('&gt; Safe Caption'), 'Figcaption tag and content preserved');
+assert.ok(!sanitizedResult.includes('<p style='), 'Paragraph inline style stripped');
+assert.ok(!sanitizedResult.includes('onclick='), 'onclick stripped');
+assert.ok(!sanitizedResult.includes('onerror='), 'onerror stripped');
+assert.ok(!sanitizedResult.includes('color: blue'), 'color style stripped');
+assert.ok(!sanitizedResult.includes('behavior:'), 'behavior CSS property stripped');
+assert.ok(!sanitizedResult.includes('<script>'), 'script tag completely removed');
+assert.ok(!sanitizedResult.includes('<iframe>'), 'iframe tag completely removed');
+assert.ok(!sanitizedResult.includes('<p><figure'), 'Nested figure inside paragraph unwrapped');
+
+console.log('  ✓ HTML Sanitizer strictly validates <figure>, <figcaption>, safe inline styles, and eliminates XSS vectors');
+
+// 7.4 Button btn-cheat-image & Modal Markup in Both Editors
+console.log('  -> 7.4 Testing btn-cheat-image and Modal Image Cheat markup in Blog Editor & News Editor');
+
+for (const [editorName, editorHtml] of [
+    ['Blog Editor (editor.astro)', blogEditorFile],
+    ['News Editor (news/editor.astro)', newsEditorFile]
+]) {
+    // Toolbar button
+    assert.ok(editorHtml.includes('id="btn-cheat-image"'), `${editorName} must contain button #btn-cheat-image`);
+    assert.ok(editorHtml.includes('CHEAT: IMG'), `${editorName} button must be labeled 'CHEAT: IMG'`);
+
+    // Modal dialog container
+    assert.ok(editorHtml.includes('id="modal-image-cheat"'), `${editorName} must contain dialog #modal-image-cheat`);
+    assert.ok(editorHtml.includes('id="modal-image-cheat-card"'), `${editorName} must contain card #modal-image-cheat-card`);
+    assert.ok(editorHtml.includes('id="modal-image-cheat-title"'), `${editorName} must contain title #modal-image-cheat-title`);
+    assert.ok(editorHtml.includes('id="modal-image-cheat-close"'), `${editorName} must contain close button #modal-image-cheat-close`);
+    assert.ok(editorHtml.includes('id="modal-image-cheat-cancel"'), `${editorName} must contain cancel button #modal-image-cheat-cancel`);
+
+    // Input fields
+    assert.ok(editorHtml.includes('id="cheat-img-url"'), `${editorName} must contain input #cheat-img-url`);
+    assert.ok(editorHtml.includes('id="cheat-img-alt"'), `${editorName} must contain input #cheat-img-alt`);
+    assert.ok(editorHtml.includes('id="cheat-img-caption"'), `${editorName} must contain input #cheat-img-caption`);
+
+    // Size preset buttons & custom width
+    assert.ok(editorHtml.includes('id="cheat-size-buttons"'), `${editorName} must contain size buttons group #cheat-size-buttons`);
+    assert.ok(editorHtml.includes('data-size="small"'), `${editorName} must have small size button`);
+    assert.ok(editorHtml.includes('data-size="medium"'), `${editorName} must have medium size button`);
+    assert.ok(editorHtml.includes('data-size="large"'), `${editorName} must have large size button`);
+    assert.ok(editorHtml.includes('data-size="full"'), `${editorName} must have full size button`);
+    assert.ok(editorHtml.includes('data-size="custom"'), `${editorName} must have custom size button`);
+    assert.ok(editorHtml.includes('id="cheat-img-custom-wrap"'), `${editorName} must contain custom width wrap #cheat-img-custom-wrap`);
+    assert.ok(editorHtml.includes('id="cheat-img-custom-width"'), `${editorName} must contain custom width input #cheat-img-custom-width`);
+
+    // Alignment buttons
+    assert.ok(editorHtml.includes('id="cheat-align-buttons"'), `${editorName} must contain align buttons group #cheat-align-buttons`);
+    assert.ok(editorHtml.includes('data-align="center"'), `${editorName} must have center align button`);
+    assert.ok(editorHtml.includes('data-align="left"'), `${editorName} must have left align button`);
+    assert.ok(editorHtml.includes('data-align="right"'), `${editorName} must have right align button`);
+
+    // Previews & Insert
+    assert.ok(editorHtml.includes('id="cheat-img-code-preview"'), `${editorName} must contain code preview #cheat-img-code-preview`);
+    assert.ok(editorHtml.includes('id="cheat-img-visual-preview"'), `${editorName} must contain visual preview #cheat-img-visual-preview`);
+    assert.ok(editorHtml.includes('id="cheat-img-insert"'), `${editorName} must contain insert button #cheat-img-insert`);
+
+    // Script wiring
+    assert.ok(editorHtml.includes("btnCheatImage.addEventListener('click'"), `${editorName} must attach click handler to open cheat modal`);
+    assert.ok(editorHtml.includes("modalImageCheatClose.addEventListener('click'"), `${editorName} must attach close handler to close button`);
+    assert.ok(editorHtml.includes("modalImageCheatCancel.addEventListener('click'"), `${editorName} must attach close handler to cancel button`);
+    assert.ok(editorHtml.includes("cheatImgInsert.addEventListener('click'"), `${editorName} must attach click handler to insert markdown`);
+    assert.ok(editorHtml.includes("function renderCustomImage(href, text, title)"), `${editorName} script must define client-side renderCustomImage for live preview`);
+
+    console.log(`  ✓ ${editorName}: #btn-cheat-image, modal markup, presets (S/M/L/Full/Custom), alignments, previews & JS handlers verified`);
+}
+
+// 7.5 Marked Instance Integration in Blog and News Pages
+console.log('  -> 7.5 Testing Marked renderer integration & End-to-End Image rendering in Blog & News Details');
+
+const blogDetailSrc = fs.readFileSync(path.join(cwd, 'src/pages/blog/posts/[id].astro'), 'utf-8');
+const newsDetailSrc = fs.readFileSync(path.join(cwd, 'src/pages/news/[id].astro'), 'utf-8');
+
+for (const [pageName, src] of [['Blog Detail', blogDetailSrc], ['News Detail', newsDetailSrc]]) {
+    assert.ok(src.includes('renderCustomImage'), `${pageName} must import and use renderCustomImage`);
+    assert.ok(src.includes('image(token)'), `${pageName} markedInstance must implement image(token) renderer`);
+    assert.ok(src.includes('.article-content figure'), `${pageName} CSS must include .article-content figure`);
+    assert.ok(src.includes('.article-content figure img'), `${pageName} CSS must include .article-content figure img`);
+}
+
+// End-to-end Marked Parsing with Image
+const customMarked = new Marked();
+customMarked.use({
+    renderer: {
+        image(token) {
+            return renderCustomImage(token.href, token.text, token.title);
+        }
+    }
+});
+
+const e2eTestCases = [
+    {
+        markdown: '![Demo | right | large | caption="Diagram Sistem"](https://example.com/demo.png)',
+        expectFigure: 'items-end text-right',
+        expectStyle: 'width: 720px; max-width: 100%; height: auto',
+        expectCaption: '&gt; Diagram Sistem'
+    },
+    {
+        markdown: '![Workflow | left | 360px | caption="Alur Kerja"](https://example.com/flow.png)',
+        expectFigure: 'items-start text-left',
+        expectStyle: 'width: 360px; max-width: 100%; height: auto',
+        expectCaption: '&gt; Alur Kerja'
+    },
+    {
+        markdown: '![Responsive | center | 50% | caption="Lebar Separuh"](https://example.com/half.png)',
+        expectFigure: 'items-center text-center',
+        expectStyle: 'width: 50%; max-width: 100%; height: auto',
+        expectCaption: '&gt; Lebar Separuh'
+    }
+];
+
+for (const testCase of e2eTestCases) {
+    const output = sanitizeArticleContent(customMarked.parse(testCase.markdown));
+    assert.ok(output.includes(testCase.expectFigure), `E2E figure class "${testCase.expectFigure}" expected in output`);
+    assert.ok(output.includes(testCase.expectStyle), `E2E style "${testCase.expectStyle}" expected in output`);
+    assert.ok(output.includes(testCase.expectCaption), `E2E caption "${testCase.expectCaption}" expected in output`);
+}
+
+console.log('  ✓ End-to-end Marked parsing + sanitization successfully validated across all image formats');
+
+console.log('\n✓ Markdown Image Formatter, Sanitizer Style Whitelist, Cheat Modal & Marked Renderer verified across Blog & News');
+
 console.log('\n=========================================');
-console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (6/6 SUITES)');
+console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (7/7 SUITES)');
 console.log('=========================================\n');

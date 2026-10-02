@@ -6,6 +6,7 @@ import { getSession } from "../../../lib/auth";
 import { getPost } from "../../../lib/cms";
 import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage, stripFirstImage } from "../../../lib/utils";
 import { sanitizeArticleContent } from "../../../lib/sanitize";
+import { renderCustomImage } from "../../../lib/markdown-image";
 import { Marked } from "marked";
 
 const session = getSession(Astro.cookies);
@@ -78,6 +79,9 @@ markedInstance.use({
             });
 
             return `<div class="table-container"><table class="markdown-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+        },
+        image(token) {
+            return renderCustomImage(token.href, token.text, token.title);
         },
         hr() {
             return `<hr class="terminal-hr" />`;
@@ -491,6 +495,12 @@ const blogPostSchema = {
         color: var(--color-text);
         margin: 1.5rem 0;
         font-style: italic;
+    }
+    .article-content figure {
+        margin: 1.75rem 0;
+    }
+    .article-content figure img {
+        margin: 0;
     }
     .article-content img {
         max-width: 100%;
