@@ -4,7 +4,7 @@ export const prerender = false;
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { getSession } from "../../lib/auth";
 import { getNewsItem } from "../../lib/news";
-import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage, stripFirstImage } from "../../lib/utils";
+import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage, stripFirstImage, optimizeOgImageUrl } from "../../lib/utils";
 import { sanitizeArticleContent } from "../../lib/sanitize";
 import { renderCustomImage } from "../../lib/markdown-image";
 import { Marked } from "marked";
@@ -117,13 +117,11 @@ const bodyContent = coverToShow
 const htmlContent = sanitizeArticleContent(markedInstance.parse(bodyContent) as string);
 
 // 3. Fallback ke banner situs jika tidak ada gambar sama sekali atau gambar konten tidak aman
-const resolvedImage = explicitCover || safeContentImage || `${siteBase}/banner.png`;
+const safeExplicitCover = (explicitCover && isSafeForOgImage(explicitCover)) ? explicitCover : undefined;
+const resolvedImage = safeExplicitCover || safeContentImage || `${siteBase}/banner.png`;
 
-// URL absolut untuk Open Graph, Twitter Cards, dan Schema.org
-const fullOgImage =
-    resolvedImage.startsWith('http://') || resolvedImage.startsWith('https://')
-        ? resolvedImage
-        : `${siteBase}${resolvedImage.startsWith('/') ? '' : '/'}${resolvedImage}`;
+// URL absolut & teroptimasi untuk Open Graph, Twitter Cards, dan Schema.org (kompatibilitas WhatsApp preview)
+const fullOgImage = optimizeOgImageUrl(resolvedImage, siteBase);
 
 const newsArticleSchema = {
     "@context": "https://schema.org",
