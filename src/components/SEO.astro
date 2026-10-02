@@ -1,5 +1,6 @@
 ---
 import { getProfileData } from "../lib/cms";
+import { optimizeOgImageUrl } from "../lib/utils";
 
 /**
  * SEO.astro
@@ -70,22 +71,23 @@ const defaultDynamicImage = (ogType === 'article' || pathname.startsWith('/news'
   : fullAvatarUrl;
 
 const rawImage = ogImage || defaultDynamicImage;
-const fullOgImage = rawImage.startsWith('http://') || rawImage.startsWith('https://')
-  ? rawImage
-  : `${siteBase}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
+const fullOgImage = optimizeOgImageUrl(rawImage, siteBase);
 
 const secureOgImage = fullOgImage.startsWith('https://')
   ? fullOgImage
   : fullOgImage.replace(/^http:\/\//, 'https://');
 
+const isProxiedByWsrv = fullOgImage.includes('wsrv.nl');
 const cleanImgPath = fullOgImage.split('?')[0].toLowerCase();
-const ogImageMime = cleanImgPath.endsWith('.png')
-  ? 'image/png'
-  : cleanImgPath.endsWith('.webp')
-    ? 'image/webp'
-    : cleanImgPath.endsWith('.gif')
-      ? 'image/gif'
-      : 'image/jpeg';
+const ogImageMime = isProxiedByWsrv
+  ? 'image/jpeg'
+  : cleanImgPath.endsWith('.png')
+    ? 'image/png'
+    : cleanImgPath.endsWith('.webp')
+      ? 'image/webp'
+      : cleanImgPath.endsWith('.gif')
+        ? 'image/gif'
+        : 'image/jpeg';
 
 const fullTitle = title.includes('Ahmad Fauzan Adiman')
   ? title
@@ -208,6 +210,17 @@ const alreadyHasBreadcrumb = schemaList.some(
 if (!alreadyHasBreadcrumb) {
   schemaList.push(breadcrumbSchema);
 }
+
+// Pastikan skema artikel/posting yang memiliki properti `image` dioptimasi
+schemaList.forEach((s) => {
+  if (s && typeof s === 'object' && typeof s.image === 'string') {
+    const type = s['@type'];
+    if (type === 'BlogPosting' || type === 'NewsArticle' || type === 'Article') {
+      s.image = optimizeOgImageUrl(s.image, siteBase);
+    }
+  }
+});
+
 finalSchema = schemaList.length === 1 ? schemaList[0] : schemaList;
 ---
 

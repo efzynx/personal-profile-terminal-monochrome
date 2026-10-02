@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { generatePostSlug } from '../src/lib/utils.ts';
+import { generatePostSlug, optimizeOgImageUrl, isSafeForOgImage } from '../src/lib/utils.ts';
 import { renderCustomImage, parseImageSyntax } from '../src/lib/markdown-image.ts';
 import { sanitizeArticleContent, sanitizeStyle } from '../src/lib/sanitize.ts';
 import { Marked } from 'marked';
@@ -583,6 +583,111 @@ console.log('  ✓ End-to-end Marked parsing + sanitization successfully validat
 
 console.log('\n✓ Markdown Image Formatter, Sanitizer Style Whitelist, Cheat Modal & Marked Renderer verified across Blog & News');
 
+// =========================================================================
+// TEST SUITE 8: Open Graph Image Optimizer & SEO Component Integration
+// =========================================================================
+console.log('\n[Suite 8] Testing Open Graph Image Optimizer (optimizeOgImageUrl) & SEO.astro');
+
+// 8.1 Default Banner Fallback when rawUrl is missing, empty, or whitespace
+assert.equal(optimizeOgImageUrl(undefined), 'https://www.efzyn.my.id/banner.png');
+assert.equal(optimizeOgImageUrl(''), 'https://www.efzyn.my.id/banner.png');
+assert.equal(optimizeOgImageUrl('   '), 'https://www.efzyn.my.id/banner.png');
+console.log('✓ optimizeOgImageUrl returns default banner when rawUrl is missing or blank');
+
+// 8.2 Default Banner Fallback for relative or absolute /banner.png
+assert.equal(optimizeOgImageUrl('/banner.png'), 'https://www.efzyn.my.id/banner.png');
+assert.equal(optimizeOgImageUrl('banner.png'), 'https://www.efzyn.my.id/banner.png');
+assert.equal(optimizeOgImageUrl('https://www.efzyn.my.id/banner.png'), 'https://www.efzyn.my.id/banner.png');
+assert.equal(optimizeOgImageUrl('http://localhost:4321/banner.png?v=1'), 'https://www.efzyn.my.id/banner.png');
+console.log('✓ optimizeOgImageUrl preserves original banner.png without proxying through wsrv.nl');
+
+// 8.3 Custom siteBase support
+assert.equal(optimizeOgImageUrl('/banner.png', 'https://custom-domain.com'), 'https://custom-domain.com/banner.png');
+assert.equal(optimizeOgImageUrl(undefined, 'https://custom-domain.com/'), 'https://custom-domain.com/banner.png');
+console.log('✓ optimizeOgImageUrl respects custom siteBase parameter and trims trailing slashes');
+
+// 8.4 External image proxying through Cloudflare Edge (wsrv.nl)
+const ext1 = 'https://raw.githubusercontent.com/efzynx/portfolio/main/cover.png';
+const expectedExt1 = `https://wsrv.nl/?url=${encodeURIComponent(ext1)}&w=1200&h=630&fit=cover&output=jpg&q=80`;
+assert.equal(optimizeOgImageUrl(ext1), expectedExt1);
+
+const ext2 = 'https://i.ibb.co/xyz789/thumbnail.jpg?token=abc';
+const expectedExt2 = `https://wsrv.nl/?url=${encodeURIComponent(ext2)}&w=1200&h=630&fit=cover&output=jpg&q=80`;
+assert.equal(optimizeOgImageUrl(ext2), expectedExt2);
+
+const ext3 = 'https://abc.supabase.co/storage/v1/object/public/images/post1.png';
+const expectedExt3 = `https://wsrv.nl/?url=${encodeURIComponent(ext3)}&w=1200&h=630&fit=cover&output=jpg&q=80`;
+assert.equal(optimizeOgImageUrl(ext3), expectedExt3);
+console.log('✓ optimizeOgImageUrl correctly proxies external images through wsrv.nl with 1200x630, fit=cover, output=jpg, q=80');
+
+// 8.5 Idempotency: Do not re-wrap already proxied wsrv.nl URLs
+const alreadyProxied = 'https://wsrv.nl/?url=https%3A%2F%2Fexample.com%2Fimg.png&w=1200&h=630&fit=cover&output=jpg&q=80';
+assert.equal(optimizeOgImageUrl(alreadyProxied), alreadyProxied);
+console.log('✓ optimizeOgImageUrl does not re-wrap already proxied wsrv.nl URLs');
+
+// 8.6 SEO.astro Integration Checks
+const seoSource = fs.readFileSync(path.join(cwd, 'src/components/SEO.astro'), 'utf-8');
+assert.ok(seoSource.includes("import { optimizeOgImageUrl } from \"../lib/utils\";"), 'SEO.astro must import optimizeOgImageUrl');
+assert.ok(seoSource.includes("const fullOgImage = optimizeOgImageUrl(rawImage, siteBase);"), 'SEO.astro must compute fullOgImage using optimizeOgImageUrl');
+assert.ok(seoSource.includes("const isProxiedByWsrv = fullOgImage.includes('wsrv.nl');"), 'SEO.astro must detect wsrv.nl proxying');
+assert.ok(seoSource.includes("isProxiedByWsrv\n  ? 'image/jpeg'"), 'SEO.astro must set ogImageMime to image/jpeg for wsrv.nl');
+assert.ok(seoSource.includes('<meta property="og:image" content={fullOgImage} />'), 'SEO.astro must set og:image to fullOgImage');
+assert.ok(seoSource.includes('<meta property="og:image:secure_url" content={secureOgImage} />'), 'SEO.astro must set og:image:secure_url to secureOgImage');
+assert.ok(seoSource.includes('<meta property="og:image:type" content={ogImageMime} />'), 'SEO.astro must set og:image:type to ogImageMime');
+assert.ok(seoSource.includes('<meta name="twitter:image" content={fullOgImage} />'), 'SEO.astro must set twitter:image to fullOgImage');
+console.log('✓ SEO.astro integration verified: optimizeOgImageUrl, MIME type resolution, og:image, and twitter:image');
+
+// 8.7 Blog Detail (src/pages/blog/posts/[id].astro) Integration Checks
+const blogPostSource = fs.readFileSync(path.join(cwd, 'src/pages/blog/posts/[id].astro'), 'utf-8');
+assert.ok(blogPostSource.includes('optimizeOgImageUrl'), 'Blog post page must import optimizeOgImageUrl');
+assert.ok(blogPostSource.includes('const safeExplicitCover = (explicitCover && isSafeForOgImage(explicitCover)) ? explicitCover : undefined;'), 'Blog post page must validate explicitCover with isSafeForOgImage');
+assert.ok(blogPostSource.includes('const fullOgImage = optimizeOgImageUrl(resolvedImage, siteBase);'), 'Blog post page must compute fullOgImage using optimizeOgImageUrl');
+assert.ok(blogPostSource.includes('ogImage={fullOgImage}'), 'Blog post page must pass ogImage={fullOgImage} to BaseLayout');
+assert.ok(blogPostSource.includes('"image": fullOgImage'), 'blogPostSchema must use fullOgImage as image');
+assert.ok(blogPostSource.includes('schemaJsonLd={blogPostSchema}'), 'Blog post page must pass schemaJsonLd={blogPostSchema} to BaseLayout');
+console.log('✓ Blog detail page (posts/[id].astro) verified: cover cascade, optimizeOgImageUrl, ogImage prop, and blogPostSchema');
+
+// 8.8 News Detail (src/pages/news/[id].astro) Integration Checks
+const newsDetailSource = fs.readFileSync(path.join(cwd, 'src/pages/news/[id].astro'), 'utf-8');
+assert.ok(newsDetailSource.includes('optimizeOgImageUrl'), 'News detail page must import optimizeOgImageUrl');
+assert.ok(newsDetailSource.includes('const safeExplicitCover = (explicitCover && isSafeForOgImage(explicitCover)) ? explicitCover : undefined;'), 'News detail page must validate explicitCover with isSafeForOgImage');
+assert.ok(newsDetailSource.includes('const fullOgImage = optimizeOgImageUrl(resolvedImage, siteBase);'), 'News detail page must compute fullOgImage using optimizeOgImageUrl');
+assert.ok(newsDetailSource.includes('ogImage={fullOgImage}'), 'News detail page must pass ogImage={fullOgImage} to BaseLayout');
+assert.ok(newsDetailSource.includes('"image": fullOgImage'), 'newsArticleSchema must use fullOgImage as image');
+assert.ok(newsDetailSource.includes('schemaJsonLd={newsArticleSchema}'), 'News detail page must pass schemaJsonLd={newsArticleSchema} to BaseLayout');
+console.log('✓ News detail page (news/[id].astro) verified: cover cascade, optimizeOgImageUrl, ogImage prop, and newsArticleSchema');
+
+// 8.9 Fallback Cover Image Cascade Logic Simulation
+const siteBase = 'https://www.efzyn.my.id';
+function simulateCoverCascade(explicitCover, contentImage) {
+  const safeExplicit = (explicitCover && isSafeForOgImage(explicitCover)) ? explicitCover : undefined;
+  const safeContent = (contentImage && isSafeForOgImage(contentImage)) ? contentImage : undefined;
+  const resolved = safeExplicit || safeContent || `${siteBase}/banner.png`;
+  return optimizeOgImageUrl(resolved, siteBase);
+}
+
+// Case 1: Valid explicit cover
+const cascade1 = simulateCoverCascade('https://example.com/cover.png', 'https://example.com/ignore-me.png');
+assert.ok(cascade1.includes('url=https%3A%2F%2Fexample.com%2Fcover.png'), 'Cascade must prioritize explicitCover when safe');
+assert.ok(cascade1.includes('wsrv.nl'), 'Cascade must optimize external explicitCover via wsrv.nl');
+
+// Case 2: Unsafe explicit cover (SVG), safe content image
+const cascade2 = simulateCoverCascade('https://example.com/logo.svg', 'https://example.com/content.jpg');
+assert.ok(cascade2.includes('url=https%3A%2F%2Fexample.com%2Fcontent.jpg'), 'Cascade must fallback to safeContentImage if explicitCover is SVG/unsafe');
+
+// Case 3: Unsafe explicit cover (data:), unsafe content image (wikimedia 403)
+const cascade3 = simulateCoverCascade('data:image/png;base64,123', 'https://upload.wikimedia.org/wiki/img.jpg');
+assert.equal(cascade3, 'https://www.efzyn.my.id/banner.png', 'Cascade must fallback to default banner if all covers are unsafe');
+
+// Case 4: No explicit cover, no content image
+const cascade4 = simulateCoverCascade(undefined, undefined);
+assert.equal(cascade4, 'https://www.efzyn.my.id/banner.png', 'Cascade must fallback to default banner when no images exist');
+console.log('✓ Fallback cover image cascade (explicitCover -> safeContentImage -> defaultDynamicImage) simulated and verified');
+
+// 8.10 Schema.org JSON-LD image auto-optimization in SEO.astro
+assert.ok(seoSource.includes("s.image = optimizeOgImageUrl(s.image, siteBase);"), 'SEO.astro must ensure schema image URLs are optimized');
+console.log('✓ Schema.org JSON-LD auto-optimization for BlogPosting, NewsArticle, and Article verified in SEO.astro');
+
 console.log('\n=========================================');
-console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (7/7 SUITES)');
+console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (8/8 SUITES)');
 console.log('=========================================\n');

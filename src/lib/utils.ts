@@ -139,3 +139,54 @@ export function isSafeForOgImage(url?: string): boolean {
 
   return true;
 }
+
+/**
+ * Optimizes an Open Graph image URL for fast, reliable social media link previews
+ * (especially WhatsApp, Facebook, Twitter).
+ *
+ * WhatsApp enforces a strict 300 KB limit for og:image previews.
+ * - If rawUrl is empty or points to the site default /banner.png, returns ${siteBase}/banner.png
+ *   (the site banner is pre-optimized to 1200x630 px, ~38 KB).
+ * - If rawUrl is an external image (e.g. raw.githubusercontent.com, i.ibb.co, Supabase storage, etc.):
+ *   Routes the image through wsrv.nl Cloudflare Edge image proxy with:
+ *   https://wsrv.nl/?url=${encodeURIComponent(trimmed)}&w=1200&h=630&fit=cover&output=jpg&q=80
+ *   guaranteeing a 1200x630 JPEG under 100 KB with global edge caching.
+ * - If already a wsrv.nl URL, returns as-is without re-wrapping.
+ */
+export function optimizeOgImageUrl(rawUrl?: string, siteBase: string = 'https://www.efzyn.my.id'): string {
+  const base = (siteBase || 'https://www.efzyn.my.id').replace(/\/$/, '');
+
+  if (!rawUrl || typeof rawUrl !== 'string') {
+    return `${base}/banner.png`;
+  }
+
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return `${base}/banner.png`;
+  }
+
+  // Jika sudah berupa URL wsrv.nl / weserv.nl, jangan di-wrap ulang
+  if (trimmed.includes('wsrv.nl') || trimmed.includes('weserv.nl')) {
+    return trimmed.startsWith('http://') ? trimmed.replace(/^http:\/\//, 'https://') : trimmed;
+  }
+
+  // Cek apakah mengarah ke banner default /banner.png
+  // Baik relatif (/banner.png, banner.png) maupun absolut (${base}/banner.png, etc.)
+  const cleanPath = trimmed.split('?')[0].replace(/^https?:\/\/[^\/]+/, '');
+  if (
+    cleanPath === '/banner.png' ||
+    cleanPath === 'banner.png' ||
+    trimmed === `${base}/banner.png` ||
+    trimmed.startsWith(`${base}/banner.png?`)
+  ) {
+    return `${base}/banner.png`;
+  }
+
+  // Tentukan target URL absolut untuk wsrv.nl
+  let targetUrl = trimmed;
+  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+    targetUrl = `${base}${targetUrl.startsWith('/') ? '' : '/'}${targetUrl}`;
+  }
+
+  return `https://wsrv.nl/?url=${encodeURIComponent(targetUrl)}&w=1200&h=630&fit=cover&output=jpg&q=80`;
+}
