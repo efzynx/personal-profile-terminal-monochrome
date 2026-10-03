@@ -1,6 +1,6 @@
 # Ahmad Fauzan Adiman
 
-> Backend Developer & DevOps Enthusiast based in Indonesia. Final-year Informatics student at Universitas Nurul Jadid (UNUJA). Specializing in scalable backend architectures, cloud infrastructure, and Linux systems.
+> Backend Developer & DevOps Enthusiast based in Indonesia. Specializing in scalable backend architectures, cloud infrastructure, and Linux systems.
 
 Ahmad Fauzan Adiman (known online as efzyn / efzynx) is a software engineer focused on reliable backend systems, containerization, cloud engineering, and automated CI/CD pipelines. This site serves as his central engineering gateway, terminal-monochrome portfolio, technical blog, and curated tech news repository.
 

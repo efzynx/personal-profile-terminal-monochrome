@@ -788,6 +788,237 @@ assert.ok(
 );
 console.log('✓ security.txt RFC 9116 compliance validated (Contact, future Expires, Preferred-Languages, Canonical)');
 
+// =========================================================================
+// TEST SUITE 10: SEO Title Normalization, Semantic H2, Professional Bio & Meta Description Char Counter
+// =========================================================================
+console.log('\n[Suite 10] Testing SEO Title Normalization, Semantic H2, Professional Bio & Meta Description Char Counter');
+
+// 10.1 Validasi Homepage Title & Normalisasi fullTitle di BaseLayout.astro & SEO.astro
+console.log('  -> 10.1 Validating Homepage Title & fullTitle normalization in BaseLayout.astro & SEO.astro');
+const indexSource = fs.readFileSync(path.join(cwd, 'src/pages/index.astro'), 'utf-8');
+const baseLayoutSource = fs.readFileSync(path.join(cwd, 'src/layouts/BaseLayout.astro'), 'utf-8');
+const currentSeoSource = fs.readFileSync(path.join(cwd, 'src/components/SEO.astro'), 'utf-8');
+
+// Verifikasi title prop di index.astro
+assert.ok(
+    indexSource.includes('title="Ahmad Fauzan Adiman — Backend Developer & DevOps Enthusiast"'),
+    'index.astro must provide explicit full professional title to BaseLayout'
+);
+
+// Verifikasi logic normalisasi di BaseLayout.astro
+assert.ok(
+    baseLayoutSource.includes("title.includes('Ahmad Fauzan Adiman')"),
+    'BaseLayout.astro must check if title includes brand/name to prevent duplicate suffix'
+);
+assert.ok(
+    baseLayoutSource.includes('<title>{fullTitle}</title>'),
+    'BaseLayout.astro must render <title>{fullTitle}</title>'
+);
+
+// Verifikasi logic normalisasi di SEO.astro
+assert.ok(
+    currentSeoSource.includes("title.includes('Ahmad Fauzan Adiman')"),
+    'SEO.astro must check if title includes brand/name to prevent duplicate suffix'
+);
+assert.ok(
+    currentSeoSource.includes('<meta property="og:title" content={fullTitle} />'),
+    'SEO.astro must set og:title to fullTitle'
+);
+assert.ok(
+    currentSeoSource.includes('<meta name="twitter:title" content={fullTitle} />'),
+    'SEO.astro must set twitter:title to fullTitle'
+);
+
+// Test unit normalisasi fungsi fullTitle
+function normalizeTitle(rawTitle) {
+    return rawTitle.includes('Ahmad Fauzan Adiman')
+        ? rawTitle
+        : `${rawTitle} — Ahmad Fauzan Adiman`;
+}
+
+// Kasus 1: Homepage title tidak boleh terduplikasi
+const homepageRaw = 'Ahmad Fauzan Adiman — Backend Developer & DevOps Enthusiast';
+assert.equal(
+    normalizeTitle(homepageRaw),
+    'Ahmad Fauzan Adiman — Backend Developer & DevOps Enthusiast',
+    'Homepage title should not append duplicate "— Ahmad Fauzan Adiman"'
+);
+
+// Kasus 2: Title pendek biasa harus diberi suffix nama
+assert.equal(
+    normalizeTitle('Blog'),
+    'Blog — Ahmad Fauzan Adiman',
+    'Short title should append " — Ahmad Fauzan Adiman"'
+);
+assert.equal(
+    normalizeTitle('Portfolio'),
+    'Portfolio — Ahmad Fauzan Adiman',
+    'Short title should append " — Ahmad Fauzan Adiman"'
+);
+assert.equal(
+    normalizeTitle('News & Articles'),
+    'News & Articles — Ahmad Fauzan Adiman',
+    'Custom page title should append " — Ahmad Fauzan Adiman"'
+);
+
+// Kasus 3: Title artikel yang sudah ada nama tidak boleh terduplikasi
+assert.equal(
+    normalizeTitle('Panduan Docker oleh Ahmad Fauzan Adiman'),
+    'Panduan Docker oleh Ahmad Fauzan Adiman',
+    'Title already mentioning author should not duplicate suffix'
+);
+console.log('✓ Homepage title & fullTitle normalization logic validated across BaseLayout.astro & SEO.astro');
+
+// 10.2 Validasi Keberadaan dan Hirarki Semantik <h2> di src/pages/index.astro
+console.log('  -> 10.2 Validating semantic <h2> hierarchy in src/pages/index.astro');
+assert.ok(
+    indexSource.includes('<h2'),
+    'index.astro must contain <h2> heading element for SEO hierarchy'
+);
+assert.ok(
+    indexSource.includes('&gt; directory_index') || indexSource.includes('> directory_index'),
+    'index.astro <h2> must contain "> directory_index" navigation landmark'
+);
+assert.ok(
+    indexSource.includes('aria-label="Main navigation"'),
+    'index.astro nav must include accessibility aria-label'
+);
+console.log('✓ Semantic <h2> navigation heading on homepage verified');
+
+// 10.3 Validasi Penghapusan Bio Lama "Mahasiswa" & Konfigurasi Bio Profesional Baru
+console.log('  -> 10.3 Validating elimination of legacy student bio & verification of professional bio');
+const profileJsonPath = path.join(cwd, 'src/content/profile.json');
+const profileJsonContent = fs.readFileSync(profileJsonPath, 'utf-8');
+const profileData = JSON.parse(profileJsonContent);
+
+const filesToCheckForLegacyBio = [
+    { name: 'src/content/profile.json', content: profileJsonContent },
+    { name: 'src/lib/cms.ts', content: cmsSource },
+    { name: 'src/components/SEO.astro', content: currentSeoSource },
+    { name: 'public/llms.txt', content: fs.readFileSync(path.join(cwd, 'public/llms.txt'), 'utf-8') }
+];
+
+for (const file of filesToCheckForLegacyBio) {
+    assert.ok(
+        !file.content.toLowerCase().includes('mahasiswa tingkat akhir'),
+        `${file.name} must NOT contain "Mahasiswa tingkat akhir"`
+    );
+    assert.ok(
+        !file.content.toLowerCase().includes('final-year'),
+        `${file.name} must NOT contain "final-year"`
+    );
+}
+
+// Verifikasi bio profesional baru di profile.json
+assert.ok(
+    profileData.bio.includes('Fokus pada arsitektur sistem scalable, otomasi cloud, dan lingkungan Linux.'),
+    'profile.json bio must reflect new professional bio focusing on scalable architecture & cloud/Linux'
+);
+
+// Verifikasi fallback bio di cms.ts
+assert.ok(
+    cmsSource.includes('Fokus pada arsitektur sistem scalable, otomasi cloud, dan lingkungan Linux.'),
+    'cms.ts fallback profileData must reflect new professional bio'
+);
+
+// Verifikasi fallback bio di SEO.astro
+assert.ok(
+    currentSeoSource.includes('Fokus pada arsitektur sistem scalable, otomasi cloud, dan lingkungan Linux.'),
+    'SEO.astro fallback description must reflect new professional bio'
+);
+
+// Verifikasi bio di public/llms.txt
+const llmsTxtContent = fs.readFileSync(path.join(cwd, 'public/llms.txt'), 'utf-8');
+assert.ok(
+    llmsTxtContent.includes('Specializing in scalable backend architectures, cloud infrastructure, and Linux systems.'),
+    'public/llms.txt must reflect new professional bio'
+);
+console.log('✓ Legacy "Mahasiswa tingkat akhir" completely eliminated and new professional bio verified across all sources');
+
+// 10.4 Validasi Live Character Counter Meta Description (160 Karakter) di Blog & News Editor
+console.log('  -> 10.4 Validating live meta description character counter in Blog & News Editor');
+const blogEditorSource = fs.readFileSync(path.join(cwd, 'src/pages/writer/dashboard/editor.astro'), 'utf-8');
+const newsEditorSource = fs.readFileSync(path.join(cwd, 'src/pages/writer/dashboard/news/editor.astro'), 'utf-8');
+
+// Blog Editor Markup & Script Verification
+assert.ok(
+    blogEditorSource.includes('id="desc-char-counter"'),
+    'Blog editor must contain #desc-char-counter element'
+);
+assert.ok(
+    blogEditorSource.includes('/ 160 karakter'),
+    'Blog editor counter markup must display / 160 karakter limit'
+);
+assert.ok(
+    blogEditorSource.includes('Melebihi 160 karakter — Google akan memotong di SERP'),
+    'Blog editor must warn when description exceeds 160 characters (SERP truncation warning)'
+);
+assert.ok(
+    blogEditorSource.includes("document.getElementById('desc-char-counter')"),
+    'Blog editor client script must bind #desc-char-counter'
+);
+assert.ok(
+    blogEditorSource.includes("descField.addEventListener('input', updateDescCharCounter)"),
+    'Blog editor must listen to input events on description textarea'
+);
+
+// News Editor Markup & Script Verification
+assert.ok(
+    newsEditorSource.includes('id="desc-char-counter"'),
+    'News editor must contain #desc-char-counter element'
+);
+assert.ok(
+    newsEditorSource.includes('/ 160 karakter'),
+    'News editor counter markup must display / 160 karakter limit'
+);
+assert.ok(
+    newsEditorSource.includes('Melebihi 160 karakter — Google akan memotong di SERP'),
+    'News editor must warn when summary exceeds 160 characters (SERP truncation warning)'
+);
+assert.ok(
+    newsEditorSource.includes("document.getElementById('desc-char-counter')"),
+    'News editor client script must bind #desc-char-counter'
+);
+assert.ok(
+    newsEditorSource.includes("summaryField.addEventListener('input', updateDescCharCounter)"),
+    'News editor must update desc-char-counter on summaryField input'
+);
+
+// Unit Test Counter Logic Simulation
+function simulateDescCounter(text) {
+    const len = text.length;
+    if (len > 160) {
+        return {
+            warning: true,
+            text: `${len} / 160 karakter — Melebihi 160 karakter — Google akan memotong di SERP`,
+            isOverLimit: true
+        };
+    }
+    return {
+        warning: false,
+        text: `${len} / 160 karakter`,
+        isOverLimit: false
+    };
+}
+
+const safeDesc = 'Panduan komprehensif arsitektur microservices dan container orchestration dengan Kubernetes dan Docker untuk skalabilitas tinggi.';
+const exact160Desc = 'A'.repeat(160);
+const overLimitDesc = 'A'.repeat(161);
+
+const safeResult = simulateDescCounter(safeDesc);
+assert.equal(safeResult.warning, false);
+assert.equal(safeResult.text, `${safeDesc.length} / 160 karakter`);
+
+const exactResult = simulateDescCounter(exact160Desc);
+assert.equal(exactResult.warning, false);
+assert.equal(exactResult.text, '160 / 160 karakter');
+
+const overResult = simulateDescCounter(overLimitDesc);
+assert.equal(overResult.warning, true);
+assert.equal(overResult.text, '161 / 160 karakter — Melebihi 160 karakter — Google akan memotong di SERP');
+
+console.log('✓ Meta description character counter (160 chars SERP threshold) markup & client script verified in both editors');
+
 console.log('\n=========================================');
-console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (9/9 SUITES)');
+console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (10/10 SUITES)');
 console.log('=========================================\n');

@@ -10,7 +10,7 @@ const profileData = await getProfileData();
 
 
 <BaseLayout
-    title="Home"
+    title="Ahmad Fauzan Adiman — Backend Developer & DevOps Enthusiast"
     description={`${profileData.name} — ${profileData.title}`}
     breadcrumb="cd ~/"
 >
@@ -61,6 +61,7 @@ const profileData = await getProfileData();
 
             <!-- Navigation Menu -->
             <nav class="flex flex-col gap-0.5" aria-label="Main navigation">
+                <h2 class="font-mono text-xs uppercase tracking-wider text-muted border-b border-muted pb-1 mb-2">&gt; directory_index</h2>
                 <a
                     id="nav-portfolio"
                     href="/portfolio"
