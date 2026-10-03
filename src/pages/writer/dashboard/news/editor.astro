@@ -399,11 +399,13 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
                     </div>
                     <textarea
                         id="news-summary"
+                        name="description"
                         rows="3"
                         maxlength="200"
                         placeholder="Ringkasan 1-2 kalimat"
                         class="w-full bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-sm text-text px-3 py-2"
                     >{defaultSummary}</textarea>
+                    <div id="desc-char-counter" class={`text-xs font-mono mt-1 ${defaultSummary.length > 160 ? 'text-yellow-500 text-red-400' : 'text-muted'}`}>{defaultSummary.length} / 160 karakter{defaultSummary.length > 160 ? ' — Melebihi 160 karakter — Google akan memotong di SERP' : ''}</div>
                 </div>
 
                 <!-- Tags -->
@@ -610,16 +612,35 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
             var charWordCounter = document.getElementById('char-word-counter');
             var btnMobileToggle = document.getElementById('btn-mobile-toggle');
 
-            // --- 1. Summary character counter ---
-            summaryField.addEventListener('input', function () {
+            // --- 1. Summary & Meta Description character counter ---
+            var descCharCounter = document.getElementById('desc-char-counter');
+
+            function updateDescCharCounter() {
+                if (!summaryField) return;
                 var len = summaryField.value.length;
-                summaryCounter.textContent = len + '/200';
-                if (len > 180) {
-                    summaryCounter.className = 'font-mono text-[10px] text-red-400';
-                } else {
-                    summaryCounter.className = 'font-mono text-[10px] text-muted';
+                if (summaryCounter) {
+                    summaryCounter.textContent = len + '/200';
+                    if (len > 180) {
+                        summaryCounter.className = 'font-mono text-[10px] text-red-400';
+                    } else {
+                        summaryCounter.className = 'font-mono text-[10px] text-muted';
+                    }
                 }
-            });
+                if (descCharCounter) {
+                    if (len > 160) {
+                        descCharCounter.className = 'text-xs font-mono text-yellow-500 text-red-400 mt-1';
+                        descCharCounter.textContent = len + ' / 160 karakter — Melebihi 160 karakter — Google akan memotong di SERP';
+                    } else {
+                        descCharCounter.className = 'text-xs font-mono text-muted mt-1';
+                        descCharCounter.textContent = len + ' / 160 karakter';
+                    }
+                }
+            }
+
+            if (summaryField) {
+                summaryField.addEventListener('input', updateDescCharCounter);
+                updateDescCharCounter();
+            }
 
             // --- 2. Custom Markdown Image Formatter Logic (Identical to src/lib/markdown-image.ts) ---
             var IMAGE_WIDTH_PRESETS = {

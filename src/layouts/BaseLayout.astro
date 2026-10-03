@@ -56,6 +56,10 @@ import ThemeToggle from "../components/ThemeToggle.astro";
 const profileData = await getProfileData();
 const activeFavicon = profileData.faviconUrl || "/favicon.svg";
 const activeAvatar = profileData.avatarUrl || "/saya.avif";
+
+const fullTitle = title.includes('Ahmad Fauzan Adiman')
+    ? title
+    : `${title} — Ahmad Fauzan Adiman`;
 ---
 
 
@@ -66,7 +70,7 @@ const activeAvatar = profileData.avatarUrl || "/saya.avif";
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content={description} />
-        <title>{title} — Ahmad Fauzan Adiman</title>
+        <title>{fullTitle}</title>
 
         <!-- Technical SEO, Open Graph & Schema.org JSON-LD -->
         <SEO

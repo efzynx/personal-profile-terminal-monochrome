@@ -227,7 +227,7 @@ export async function getProfileData(token?: string): Promise<ProfileData> {
     name: 'Ahmad Fauzan Adiman',
     title: 'Backend Developer & DevOps Enthusiast',
     terminalPrompt: 'fauzan@archLinux',
-    bio: 'Backend Developer & DevOps Enthusiast.\nMahasiswa tingkat akhir Univ. Nurul Jadid.',
+    bio: 'Backend Developer & DevOps Enthusiast.\nFokus pada arsitektur sistem scalable, otomasi cloud, dan lingkungan Linux.',
     portfolioBio: 'Backend Developer & DevOps Enthusiast.\nMembangun sistem yang robust.',
     avatarUrl: '/saya.avif',
     faviconUrl: '/favicon.svg',

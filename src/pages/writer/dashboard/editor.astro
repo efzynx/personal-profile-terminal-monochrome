@@ -403,6 +403,7 @@ const defaultContent = existingPost ? existingPost.content : '';
                         placeholder="Ringkasan singkat isi artikel untuk SEO dan preview list..."
                         class="bg-background border border-muted focus:border-primary focus:ring-0 font-mono text-xs text-text px-3 py-2 resize-y"
                     >{defaultDescription}</textarea>
+                    <div id="desc-char-counter" class={`text-xs font-mono mt-1 ${defaultDescription.length > 160 ? 'text-yellow-500 text-red-400' : 'text-muted'}`}>{defaultDescription.length} / 160 karakter{defaultDescription.length > 160 ? ' — Melebihi 160 karakter — Google akan memotong di SERP' : ''}</div>
                 </div>
 
                 <!-- Cover Image & Options -->
@@ -609,6 +610,27 @@ const defaultContent = existingPost ? existingPost.content : '';
                     slugInput.value = generateClientSlug();
                     slugInput.focus();
                 });
+            }
+
+            // --- 1b. Meta Description Live Character Counter (160 Chars SEO Limit) ---
+            var descField = document.getElementById('description');
+            var descCharCounter = document.getElementById('desc-char-counter');
+
+            function updateDescCharCounter() {
+                if (!descField || !descCharCounter) return;
+                var len = descField.value.length;
+                if (len > 160) {
+                    descCharCounter.className = 'text-xs font-mono text-yellow-500 text-red-400 mt-1';
+                    descCharCounter.textContent = len + ' / 160 karakter — Melebihi 160 karakter — Google akan memotong di SERP';
+                } else {
+                    descCharCounter.className = 'text-xs font-mono text-muted mt-1';
+                    descCharCounter.textContent = len + ' / 160 karakter';
+                }
+            }
+
+            if (descField) {
+                descField.addEventListener('input', updateDescCharCounter);
+                updateDescCharCounter();
             }
 
             // --- 2. Custom Markdown Image Formatter Logic (Identical to src/lib/markdown-image.ts) ---
