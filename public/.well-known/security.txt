@@ -1,0 +1,4 @@
+Contact: mailto:me@efzyn.my.id
+Expires: 2027-10-02T00:00:00.000Z
+Preferred-Languages: id, en
+Canonical: https://www.efzyn.my.id/.well-known/security.txt

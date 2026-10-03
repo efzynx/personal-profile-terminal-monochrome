@@ -688,6 +688,106 @@ console.log('✓ Fallback cover image cascade (explicitCover -> safeContentImage
 assert.ok(seoSource.includes("s.image = optimizeOgImageUrl(s.image, siteBase);"), 'SEO.astro must ensure schema image URLs are optimized');
 console.log('✓ Schema.org JSON-LD auto-optimization for BlogPosting, NewsArticle, and Article verified in SEO.astro');
 
+// =========================================================================
+// TEST SUITE 9: Security Configuration: HSTS in vercel.json & RFC 9116 security.txt
+// =========================================================================
+console.log('\n[Suite 9] Testing Security Configuration: HSTS in vercel.json & RFC 9116 security.txt');
+
+// 9.1 Validasi vercel.json memuat header Strict-Transport-Security dengan max-age=63072000; includeSubDomains; preload
+const vercelJsonPath = path.join(cwd, 'vercel.json');
+assert.ok(fs.existsSync(vercelJsonPath), 'vercel.json must exist');
+const vercelConfig = JSON.parse(fs.readFileSync(vercelJsonPath, 'utf-8'));
+assert.ok(Array.isArray(vercelConfig.headers), 'vercel.json must contain headers array');
+
+const globalHeaderEntry = vercelConfig.headers.find(entry => entry.source === '/(.*)');
+assert.ok(globalHeaderEntry, 'vercel.json must define headers for source "/(.*)"');
+assert.ok(Array.isArray(globalHeaderEntry.headers), 'globalHeaderEntry must have headers array');
+
+const hstsHeader = globalHeaderEntry.headers.find(
+  h => h.key && h.key.toLowerCase() === 'strict-transport-security'
+);
+assert.ok(hstsHeader, 'vercel.json headers for "/(.*)" must include Strict-Transport-Security');
+assert.equal(
+  hstsHeader.value,
+  'max-age=63072000; includeSubDomains; preload',
+  'Strict-Transport-Security must equal "max-age=63072000; includeSubDomains; preload"'
+);
+
+// Verify HSTS directives components
+assert.ok(hstsHeader.value.includes('max-age=63072000'), 'HSTS must specify max-age of at least 2 years (63072000 seconds)');
+assert.ok(hstsHeader.value.includes('includeSubDomains'), 'HSTS must include includeSubDomains directive');
+assert.ok(hstsHeader.value.includes('preload'), 'HSTS must include preload directive for HSTS preload eligibility');
+console.log('✓ vercel.json Strict-Transport-Security header validated: max-age=63072000; includeSubDomains; preload');
+
+// 9.2 Validasi keberadaan berkas public/.well-known/security.txt
+const securityTxtPath = path.join(cwd, 'public/.well-known/security.txt');
+assert.ok(fs.existsSync(securityTxtPath), 'public/.well-known/security.txt must exist');
+console.log('✓ public/.well-known/security.txt file existence verified');
+
+// 9.3 Validasi isi security.txt memenuhi standar RFC 9116
+const securityTxtContent = fs.readFileSync(securityTxtPath, 'utf-8');
+const lines = securityTxtContent.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+
+const directives = {};
+for (const line of lines) {
+  const colonIndex = line.indexOf(':');
+  assert.ok(colonIndex > 0, `Line "${line}" must follow RFC 9116 format (Directive: Value)`);
+  const key = line.slice(0, colonIndex).trim();
+  const value = line.slice(colonIndex + 1).trim();
+  directives[key] = value;
+}
+
+// Contact Directive
+assert.ok(directives['Contact'], 'security.txt must include Contact directive (RFC 9116 Section 2.5.1)');
+assert.equal(
+  directives['Contact'],
+  'mailto:me@efzyn.my.id',
+  'Contact directive must be mailto:me@efzyn.my.id'
+);
+assert.ok(
+  directives['Contact'].startsWith('mailto:') || directives['Contact'].startsWith('https://'),
+  'Contact directive must be a valid URI (mailto: or https://)'
+);
+
+// Expires Directive
+assert.ok(directives['Expires'], 'security.txt must include Expires directive (RFC 9116 Section 2.5.5)');
+const rfc3339Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+assert.match(
+  directives['Expires'],
+  rfc3339Regex,
+  'Expires directive must follow RFC 3339 date-time format (e.g. 2027-10-02T00:00:00.000Z)'
+);
+const expiresTimestamp = Date.parse(directives['Expires']);
+assert.ok(!isNaN(expiresTimestamp), 'Expires date must be a parseable valid date');
+assert.ok(
+  expiresTimestamp > Date.now(),
+  `Expires date (${directives['Expires']}) must be in the future per RFC 9116`
+);
+
+// Preferred-Languages Directive
+assert.ok(directives['Preferred-Languages'], 'security.txt must include Preferred-Languages directive');
+assert.ok(
+  directives['Preferred-Languages'].includes('id'),
+  'Preferred-Languages directive should include Indonesian (id)'
+);
+assert.ok(
+  directives['Preferred-Languages'].includes('en'),
+  'Preferred-Languages directive should include English (en)'
+);
+
+// Canonical Directive
+assert.ok(directives['Canonical'], 'security.txt must include Canonical directive (RFC 9116 Section 2.5.3)');
+assert.equal(
+  directives['Canonical'],
+  'https://www.efzyn.my.id/.well-known/security.txt',
+  'Canonical directive must point to https://www.efzyn.my.id/.well-known/security.txt'
+);
+assert.ok(
+  directives['Canonical'].startsWith('https://'),
+  'Canonical directive must use HTTPS URI scheme per RFC 9116'
+);
+console.log('✓ security.txt RFC 9116 compliance validated (Contact, future Expires, Preferred-Languages, Canonical)');
+
 console.log('\n=========================================');
-console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (8/8 SUITES)');
+console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (9/9 SUITES)');
 console.log('=========================================\n');
