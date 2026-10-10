@@ -828,15 +828,17 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
                                 var headerHtml = '';
                                 var bodyHtml = '';
                                 if (token.header) {
-                                    token.header.forEach(function (cell) {
-                                        headerHtml += '<th>' + cell.text + '</th>';
+                                    token.header.forEach((cell) => {
+                                        var cellContent = (cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text;
+                                        headerHtml += '<th>' + cellContent + '</th>';
                                     });
                                 }
                                 if (token.rows) {
-                                    token.rows.forEach(function (row) {
+                                    token.rows.forEach((row) => {
                                         var rowHtml = '';
-                                        row.forEach(function (cell) {
-                                            rowHtml += '<td>' + cell.text + '</td>';
+                                        row.forEach((cell) => {
+                                            var cellContent = (cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text;
+                                            rowHtml += '<td>' + cellContent + '</td>';
                                         });
                                         bodyHtml += '<tr>' + rowHtml + '</tr>';
                                     });
