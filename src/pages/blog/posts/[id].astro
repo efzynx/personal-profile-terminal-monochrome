@@ -8,6 +8,7 @@ import { formatDate, calculateReadTime, extractFirstImage, isSafeForOgImage, str
 import { sanitizeArticleContent } from "../../../lib/sanitize";
 import { renderCustomImage } from "../../../lib/markdown-image";
 import { Marked } from "marked";
+import markedKatex from "marked-katex-extension";
 
 const session = getSession(Astro.cookies);
 const { id } = Astro.params;
@@ -51,6 +52,7 @@ while ((match = headingRegex.exec(rawContent)) !== null) {
 
 // Configured marked parser with custom heading IDs & table wrappers
 const markedInstance = new Marked();
+markedInstance.use(markedKatex({ throwOnError: false, nonStandard: true }));
 markedInstance.use({
     renderer: {
         heading(token) {

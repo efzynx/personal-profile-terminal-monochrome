@@ -83,8 +83,13 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
         rel="stylesheet"
     />
 
+    <!-- KaTeX Math Stylesheet (Local / CSP compliant) -->
+    <link rel="stylesheet" href="/vendor/katex/katex.min.css" />
+
     <!-- Marked Library for Client-Side Live Rendering -->
     <script is:inline src="/vendor/marked.min.js"></script>
+    <script is:inline src="/vendor/katex/katex.min.js"></script>
+    <script is:inline src="/vendor/katex/marked-katex-extension.umd.js"></script>
 
     <style is:global>
         :root {
@@ -270,6 +275,11 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
             box-shadow: 0 2px 0 var(--color-border);
             padding: 0.15rem 0.4rem;
             color: var(--color-primary);
+        }
+        .article-content .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 0.25rem 0;
         }
     </style>
 </head>
@@ -799,6 +809,9 @@ const defaultPublishedAt = existingItem ? existingItem.publishedAt : new Date().
             function initMarked() {
                 if (window.marked && window.marked.Marked) {
                     markedParser = new window.marked.Marked();
+                    if (window.markedKatex) {
+                        markedParser.use(window.markedKatex({ throwOnError: false, nonStandard: true }));
+                    }
                     markedParser.use({
                         renderer: {
                             heading(token) {

@@ -99,6 +99,9 @@ const fullTitle = title.includes('Ahmad Fauzan Adiman')
             href="https://www.efzyn.my.id/rss.xml"
         />
 
+        <!-- KaTeX Math Stylesheet (Local / CSP compliant) -->
+        <link rel="stylesheet" href="/vendor/katex/katex.min.css" />
+
         <!-- Early Theme Initialization Script (Anti-FOUC) -->
         <script is:inline>
             (function () {
@@ -144,6 +147,12 @@ const fullTitle = title.includes('Ahmad Fauzan Adiman')
                 --color-muted: #5a5a5a;
                 --color-accent: #8a8a8a;
                 --color-primary: #f0f0f0;
+            }
+
+            .katex-display {
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 0.25rem 0;
             }
         </style>
     </head>
