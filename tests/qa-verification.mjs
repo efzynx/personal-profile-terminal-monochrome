@@ -5,6 +5,7 @@ import { generatePostSlug, optimizeOgImageUrl, isSafeForOgImage } from '../src/l
 import { renderCustomImage, parseImageSyntax } from '../src/lib/markdown-image.ts';
 import { sanitizeArticleContent, sanitizeStyle } from '../src/lib/sanitize.ts';
 import { Marked } from 'marked';
+import markedKatex from 'marked-katex-extension';
 
 const cwd = process.cwd();
 
@@ -1019,6 +1020,139 @@ assert.equal(overResult.text, '161 / 160 karakter — Melebihi 160 karakter — 
 
 console.log('✓ Meta description character counter (160 chars SERP threshold) markup & client script verified in both editors');
 
+// =========================================================================
+// TEST SUITE 11: KaTeX, Marked Extension, Vendor Assets & Sanitizer Whitelist
+// =========================================================================
+console.log('\n[Suite 11] Testing KaTeX Vendor Assets, Marked Extension & MathML/SVG Sanitization');
+
+// 11.1 Vendor Assets Existence & Non-empty File Checks
+const vendorDir = path.join(cwd, 'public/vendor/katex');
+const jsAsset = path.join(vendorDir, 'katex.min.js');
+const cssAsset = path.join(vendorDir, 'katex.min.css');
+const umdAsset = path.join(vendorDir, 'marked-katex-extension.umd.js');
+const fontsDir = path.join(vendorDir, 'fonts');
+
+assert.ok(fs.existsSync(jsAsset), 'public/vendor/katex/katex.min.js must exist');
+assert.ok(fs.statSync(jsAsset).size > 100000, 'katex.min.js must not be empty (>100KB)');
+
+assert.ok(fs.existsSync(cssAsset), 'public/vendor/katex/katex.min.css must exist');
+assert.ok(fs.statSync(cssAsset).size > 10000, 'katex.min.css must not be empty (>10KB)');
+
+assert.ok(fs.existsSync(umdAsset), 'public/vendor/katex/marked-katex-extension.umd.js must exist');
+assert.ok(fs.statSync(umdAsset).size > 1000, 'marked-katex-extension.umd.js must not be empty (>1KB)');
+
+assert.ok(fs.existsSync(fontsDir), 'public/vendor/katex/fonts directory must exist');
+const fontFiles = fs.readdirSync(fontsDir);
+assert.ok(fontFiles.length >= 10, 'public/vendor/katex/fonts must contain font files');
+assert.ok(fontFiles.includes('KaTeX_Main-Regular.woff2'), 'KaTeX fonts must include KaTeX_Main-Regular.woff2');
+console.log('✓ Local vendor assets verified (katex.min.js, katex.min.css, marked-katex-extension.umd.js, fonts/)');
+
+// 11.2 Sanitize.ts Source Code Rules Validation
+const sanitizeSource = fs.readFileSync(path.join(cwd, 'src/lib/sanitize.ts'), 'utf-8');
+const requiredMathTags = [
+    'math', 'semantics', 'annotation', 'mrow', 'mtext', 'mo', 'mi', 'mn', 'mfrac', 'msqrt',
+    'msup', 'msub', 'msubsup', 'munderover', 'mover', 'munder', 'mspace', 'mtable', 'mtr',
+    'mtd', 'mstyle', 'svg', 'path'
+];
+for (const tag of requiredMathTags) {
+    assert.ok(
+        sanitizeSource.includes(`'${tag}'`),
+        `src/lib/sanitize.ts ALLOWED_TAGS must include '${tag}'`
+    );
+}
+
+const requiredCssProps = [
+    'vertical-align', 'top', 'bottom', 'left', 'right', 'padding-left', 'padding-right',
+    'border-bottom-width', 'border-top-width', 'border-color', 'min-width'
+];
+for (const prop of requiredCssProps) {
+    assert.ok(
+        sanitizeSource.includes(`'${prop}'`),
+        `src/lib/sanitize.ts ALLOWED_CSS_PROPERTIES must include '${prop}'`
+    );
+}
+
+assert.ok(sanitizeSource.includes("'aria-hidden'"), 'GLOBAL_ALLOWED_ATTRS must include aria-hidden');
+assert.ok(sanitizeSource.includes("'role'"), 'GLOBAL_ALLOWED_ATTRS must include role');
+assert.ok(sanitizeSource.includes("lowerTag !== 'span'"), 'sanitizeArticleContent must allow style on span');
+assert.ok(sanitizeSource.includes("lowerTag !== 'svg'"), 'sanitizeArticleContent must allow style on svg');
+assert.ok(sanitizeSource.includes("lowerTag !== 'path'"), 'sanitizeArticleContent must allow style on path');
+console.log('✓ src/lib/sanitize.ts rules verified for MathML/SVG tags, attributes, and safe KaTeX CSS properties');
+
+// 11.3 SSR Marked Parser Integration in Blog & News Details
+const blogDetailKatexSource = fs.readFileSync(path.join(cwd, 'src/pages/blog/posts/[id].astro'), 'utf-8');
+const newsDetailKatexSource = fs.readFileSync(path.join(cwd, 'src/pages/news/[id].astro'), 'utf-8');
+
+assert.ok(blogDetailKatexSource.includes("import markedKatex from \"marked-katex-extension\""), 'Blog detail must import markedKatex');
+assert.ok(blogDetailKatexSource.includes("markedInstance.use(markedKatex({ throwOnError: false, nonStandard: true }))"), 'Blog detail must register markedKatex');
+
+assert.ok(newsDetailKatexSource.includes("import markedKatex from \"marked-katex-extension\""), 'News detail must import markedKatex');
+assert.ok(newsDetailKatexSource.includes("markedInstance.use(markedKatex({ throwOnError: false, nonStandard: true }))"), 'News detail must register markedKatex');
+console.log('✓ SSR Marked Parser integration verified in Blog & News detail pages');
+
+// 11.4 End-to-end Marked + KaTeX + sanitizeArticleContent Pipeline
+const testMarked = new Marked();
+testMarked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+
+const sampleMarkdown = `
+# Formula Test
+
+Berikut adalah rumus matematika blok:
+$$\\text{Frecency}(A) = 40 / 4 = 10$$
+$$\\text{Frecency}(A) = \\frac{40}{4} = 10$$
+
+Dan rumus matematika inline: $\\text{Skor} \\times 4$ serta $\\sqrt{x^2 + y^2}$.
+
+<script>alert('xss')</script>
+<img src="x" onerror="evil()" onload="evil()" />
+<a href="javascript:alert(1)">malicious link</a>
+<span onclick="evil()" style="vertical-align: -0.45em; display: inline-block; top: -0.2em; behavior: url(x.htc);">Safe Math Styling</span>
+`;
+
+const renderedHtml = testMarked.parse(sampleMarkdown);
+const sanitizedHtml = sanitizeArticleContent(renderedHtml);
+
+// Verify KaTeX rendered markup survived sanitization
+assert.ok(sanitizedHtml.includes('class="katex"'), 'Sanitized HTML must contain class="katex"');
+assert.ok(sanitizedHtml.includes('<math'), 'Sanitized HTML must retain <math> element');
+assert.ok(sanitizedHtml.includes('<semantics'), 'Sanitized HTML must retain <semantics> element');
+assert.ok(sanitizedHtml.includes('<annotation'), 'Sanitized HTML must retain <annotation> element');
+assert.ok(sanitizedHtml.includes('<mrow'), 'Sanitized HTML must retain <mrow> element');
+assert.ok(sanitizedHtml.includes('<mfrac'), 'Sanitized HTML must retain <mfrac> element');
+assert.ok(sanitizedHtml.includes('<msqrt'), 'Sanitized HTML must retain <msqrt> element');
+assert.ok(sanitizedHtml.includes('Frecency'), 'Sanitized HTML must retain math text "Frecency"');
+assert.ok(sanitizedHtml.includes('Skor'), 'Sanitized HTML must retain inline math text "Skor"');
+
+// Verify style attributes on span survived sanitization
+assert.ok(sanitizedHtml.includes('style="vertical-align: -0.45em; display: inline-block; top: -0.2em"'), 'Safe inline styles must be preserved on span');
+
+// Verify XSS prevention
+assert.ok(!sanitizedHtml.includes('<script>'), 'Sanitized HTML must strip script tags');
+assert.ok(!sanitizedHtml.includes('onclick'), 'Sanitized HTML must strip onclick handlers');
+assert.ok(!sanitizedHtml.includes('onload'), 'Sanitized HTML must strip onload handlers');
+assert.ok(!sanitizedHtml.includes('onerror'), 'Sanitized HTML must strip onerror handlers');
+assert.ok(!sanitizedHtml.includes('javascript:'), 'Sanitized HTML must strip javascript: pseudo-protocol');
+assert.ok(!sanitizedHtml.includes('behavior'), 'Sanitized HTML must strip dangerous CSS behaviors');
+
+console.log('✓ End-to-end Marked + KaTeX + sanitizeArticleContent pipeline successfully validated');
+
+// 11.5 Frontend Markup Integration (BaseLayout & Live Preview Editors)
+const baseLayoutKatexSource = fs.readFileSync(path.join(cwd, 'src/layouts/BaseLayout.astro'), 'utf-8');
+assert.ok(baseLayoutKatexSource.includes('<link rel="stylesheet" href="/vendor/katex/katex.min.css" />'), 'BaseLayout must include KaTeX stylesheet');
+
+const editorKatexSource = fs.readFileSync(path.join(cwd, 'src/pages/writer/dashboard/editor.astro'), 'utf-8');
+assert.ok(editorKatexSource.includes('<link rel="stylesheet" href="/vendor/katex/katex.min.css" />'), 'Blog editor must include KaTeX stylesheet');
+assert.ok(editorKatexSource.includes('<script is:inline src="/vendor/katex/katex.min.js"></script>'), 'Blog editor must include katex.min.js');
+assert.ok(editorKatexSource.includes('<script is:inline src="/vendor/katex/marked-katex-extension.umd.js"></script>'), 'Blog editor must include marked-katex-extension.umd.js');
+assert.ok(editorKatexSource.includes('markedParser.use(window.markedKatex({ throwOnError: false, nonStandard: true }))'), 'Blog editor must register markedKatex in markedParser');
+
+const newsEditorKatexSource = fs.readFileSync(path.join(cwd, 'src/pages/writer/dashboard/news/editor.astro'), 'utf-8');
+assert.ok(newsEditorKatexSource.includes('<link rel="stylesheet" href="/vendor/katex/katex.min.css" />'), 'News editor must include KaTeX stylesheet');
+assert.ok(newsEditorKatexSource.includes('<script is:inline src="/vendor/katex/katex.min.js"></script>'), 'News editor must include katex.min.js');
+assert.ok(newsEditorKatexSource.includes('<script is:inline src="/vendor/katex/marked-katex-extension.umd.js"></script>'), 'News editor must include marked-katex-extension.umd.js');
+assert.ok(newsEditorKatexSource.includes('markedParser.use(window.markedKatex({ throwOnError: false, nonStandard: true }))'), 'News editor must register markedKatex in markedParser');
+console.log('✓ BaseLayout, Blog Editor & News Editor KaTeX markup and client scripts verified');
+
 console.log('\n=========================================');
-console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (10/10 SUITES)');
+console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (11/11 SUITES)');
 console.log('=========================================\n');

@@ -11,9 +11,12 @@ const ALLOWED_TAGS = new Set([
   'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
   'hr', 'div', 'span', 'strong', 'b', 'em', 'i', 's', 'del', 'sub', 'sup',
   'details', 'summary', 'br', 'wbr', 'figure', 'figcaption', 'section', 'article',
+  'math', 'semantics', 'annotation', 'mrow', 'mtext', 'mo', 'mi', 'mn', 'mfrac', 'msqrt',
+  'msup', 'msub', 'msubsup', 'munderover', 'mover', 'munder', 'mspace', 'mtable', 'mtr',
+  'mtd', 'mstyle', 'svg', 'path',
 ]);
 
-const GLOBAL_ALLOWED_ATTRS = new Set(['class', 'id', 'title']);
+const GLOBAL_ALLOWED_ATTRS = new Set(['class', 'id', 'title', 'aria-hidden', 'role']);
 
 const TAG_ALLOWED_ATTRS: Record<string, Set<string>> = {
   a: new Set(['href', 'target', 'rel', 'class', 'id', 'title']),
@@ -21,6 +24,11 @@ const TAG_ALLOWED_ATTRS: Record<string, Set<string>> = {
   figure: new Set(['class', 'id', 'title', 'style']),
   th: new Set(['colspan', 'rowspan', 'align', 'class', 'id']),
   td: new Set(['colspan', 'rowspan', 'align', 'class', 'id']),
+  math: new Set(['xmlns', 'display']),
+  annotation: new Set(['encoding']),
+  svg: new Set(['xmlns', 'viewbox', 'width', 'height', 'preserveaspectratio', 'style']),
+  path: new Set(['d', 'style']),
+  span: new Set(['style']),
 };
 
 const ALLOWED_CSS_PROPERTIES = new Set([
@@ -41,6 +49,16 @@ const ALLOWED_CSS_PROPERTIES = new Set([
   'clear',
   'object-fit',
   'object-position',
+  'vertical-align',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'padding-left',
+  'padding-right',
+  'border-bottom-width',
+  'border-top-width',
+  'border-color',
 ]);
 
 /**
@@ -150,9 +168,15 @@ export function sanitizeArticleContent(html: string): string {
       // Blokir atribut yang tidak terdaftar dalam allowlist
       if (!allowedAttrsForTag.has(attrName) && !GLOBAL_ALLOWED_ATTRS.has(attrName)) continue;
 
-      // Penanganan khusus untuk atribut style pada tag figure dan img
+      // Penanganan khusus untuk atribut style pada tag figure, img, span, svg, dan path
       if (attrName === 'style') {
-        if (lowerTag !== 'figure' && lowerTag !== 'img') {
+        if (
+          lowerTag !== 'figure' &&
+          lowerTag !== 'img' &&
+          lowerTag !== 'span' &&
+          lowerTag !== 'svg' &&
+          lowerTag !== 'path'
+        ) {
           continue;
         }
         const safeStyle = sanitizeStyle(attrVal);
