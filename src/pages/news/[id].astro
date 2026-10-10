@@ -70,12 +70,14 @@ markedInstance.use({
             let bodyHtml = "";
 
             token.header.forEach((cell) => {
-                headerHtml += `<th>${cell.text}</th>`;
+                const cellContent = (cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text;
+                headerHtml += `<th>${cellContent}</th>`;
             });
             token.rows.forEach((row) => {
                 let rowHtml = "";
                 row.forEach((cell) => {
-                    rowHtml += `<td>${cell.text}</td>`;
+                    const cellContent = (cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text;
+                    rowHtml += `<td>${cellContent}</td>`;
                 });
                 bodyHtml += `<tr>${rowHtml}</tr>`;
             });

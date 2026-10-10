@@ -1085,14 +1085,39 @@ const newsDetailKatexSource = fs.readFileSync(path.join(cwd, 'src/pages/news/[id
 
 assert.ok(blogDetailKatexSource.includes("import markedKatex from \"marked-katex-extension\""), 'Blog detail must import markedKatex');
 assert.ok(blogDetailKatexSource.includes("markedInstance.use(markedKatex({ throwOnError: false, nonStandard: true }))"), 'Blog detail must register markedKatex');
+assert.ok(blogDetailKatexSource.includes("(cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text"), 'Blog detail table renderer must parse inline tokens');
 
 assert.ok(newsDetailKatexSource.includes("import markedKatex from \"marked-katex-extension\""), 'News detail must import markedKatex');
 assert.ok(newsDetailKatexSource.includes("markedInstance.use(markedKatex({ throwOnError: false, nonStandard: true }))"), 'News detail must register markedKatex');
-console.log('✓ SSR Marked Parser integration verified in Blog & News detail pages');
+assert.ok(newsDetailKatexSource.includes("(cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text"), 'News detail table renderer must parse inline tokens');
+console.log('✓ SSR Marked Parser integration & Table inline token parsing verified in Blog & News detail pages');
 
-// 11.4 End-to-end Marked + KaTeX + sanitizeArticleContent Pipeline
+// 11.4 End-to-end Marked + KaTeX + Table Renderer + sanitizeArticleContent Pipeline
 const testMarked = new Marked();
 testMarked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+testMarked.use({
+    renderer: {
+        table(token) {
+            let headerHtml = "";
+            let bodyHtml = "";
+
+            token.header.forEach((cell) => {
+                const cellContent = (cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text;
+                headerHtml += `<th>${cellContent}</th>`;
+            });
+            token.rows.forEach((row) => {
+                let rowHtml = "";
+                row.forEach((cell) => {
+                    const cellContent = (cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text;
+                    rowHtml += `<td>${cellContent}</td>`;
+                });
+                bodyHtml += `<tr>${rowHtml}</tr>`;
+            });
+
+            return `<div class="table-container"><table class="markdown-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+        }
+    }
+});
 
 const sampleMarkdown = `
 # Formula Test
@@ -1103,6 +1128,11 @@ $$\\text{Frecency}(A) = \\frac{40}{4} = 10$$
 
 Dan rumus matematika inline: $\\text{Skor} \\times 4$ serta $\\sqrt{x^2 + y^2}$.
 
+| Parameter | Formula & Syarat |
+|---|---|
+| **< 1 jam** | $\\text{Skor} \\times 4$ |
+| *Waktu Rata-rata* | $\\sqrt{x^2 + y^2}$ |
+
 <script>alert('xss')</script>
 <img src="x" onerror="evil()" onload="evil()" />
 <a href="javascript:alert(1)">malicious link</a>
@@ -1111,6 +1141,16 @@ Dan rumus matematika inline: $\\text{Skor} \\times 4$ serta $\\sqrt{x^2 + y^2}$.
 
 const renderedHtml = testMarked.parse(sampleMarkdown);
 const sanitizedHtml = sanitizeArticleContent(renderedHtml);
+
+// Verify Table container and markdown-table class survived
+assert.ok(sanitizedHtml.includes('<div class="table-container">'), 'Sanitized HTML must contain table-container');
+assert.ok(sanitizedHtml.includes('<table class="markdown-table">'), 'Sanitized HTML must contain markdown-table');
+
+// Verify Table Header and Body inline markdown & KaTeX survived
+assert.ok(sanitizedHtml.includes('<th>Parameter</th>'), 'Sanitized HTML table header must contain Parameter');
+assert.ok(sanitizedHtml.includes('<th>Formula &amp; Syarat</th>') || sanitizedHtml.includes('<th>Formula & Syarat</th>'), 'Sanitized HTML table header must contain Formula & Syarat');
+assert.ok(sanitizedHtml.includes('<strong>&lt; 1 jam</strong>') || sanitizedHtml.includes('<strong>< 1 jam</strong>'), 'Sanitized HTML table cell must parse bold markdown **< 1 jam**');
+assert.ok(sanitizedHtml.includes('<em>Waktu Rata-rata</em>'), 'Sanitized HTML table cell must parse italic markdown *Waktu Rata-rata*');
 
 // Verify KaTeX rendered markup survived sanitization
 assert.ok(sanitizedHtml.includes('class="katex"'), 'Sanitized HTML must contain class="katex"');
@@ -1152,6 +1192,72 @@ assert.ok(newsEditorKatexSource.includes('<script is:inline src="/vendor/katex/k
 assert.ok(newsEditorKatexSource.includes('<script is:inline src="/vendor/katex/marked-katex-extension.umd.js"></script>'), 'News editor must include marked-katex-extension.umd.js');
 assert.ok(newsEditorKatexSource.includes('markedParser.use(window.markedKatex({ throwOnError: false, nonStandard: true }))'), 'News editor must register markedKatex in markedParser');
 console.log('✓ BaseLayout, Blog Editor & News Editor KaTeX markup and client scripts verified');
+
+// 11.6 Inline Markdown & KaTeX Formula in Markdown Table Validation
+console.log('  -> 11.6 Validating Inline Markdown & KaTeX Formula parsing inside Markdown Tables');
+
+const frecencyTableMarkdown = `
+| Rentang Waktu | Formula Frecency | Dampak Relatif |
+|---|---|---|
+| **< 1 jam** | $\\text{Skor} \\times 4$ | *Boost* |
+| **1 - 24 jam** | $\\text{Skor} \\times 2$ | *Prioritas* |
+| **1 - 7 hari** | $\\text{Skor} / 2$ | *Decay* |
+| **> 1 minggu** | $\\text{Skor} / 4$ | *Penalti* |
+`;
+
+const renderedTableHtml = testMarked.parse(frecencyTableMarkdown);
+const sanitizedTableHtml = sanitizeArticleContent(renderedTableHtml);
+
+// 1. Validasi struktur dasar tabel
+assert.ok(sanitizedTableHtml.includes('<div class="table-container"><table class="markdown-table">'), 'Table must be wrapped with container and markdown-table class');
+assert.ok(sanitizedTableHtml.includes('<th>Rentang Waktu</th>'), 'Table header must contain "Rentang Waktu"');
+assert.ok(sanitizedTableHtml.includes('<th>Formula Frecency</th>'), 'Table header must contain "Formula Frecency"');
+assert.ok(sanitizedTableHtml.includes('<th>Dampak Relatif</th>'), 'Table header must contain "Dampak Relatif"');
+
+// 2. Validasi bold tag <strong>
+assert.ok(sanitizedTableHtml.includes('<strong>&lt; 1 jam</strong>') || sanitizedTableHtml.includes('<strong>< 1 jam</strong>'), 'Table cell must contain bold <strong> tag for "< 1 jam"');
+assert.ok(sanitizedTableHtml.includes('<strong>1 - 24 jam</strong>'), 'Table cell must contain bold <strong> tag for "1 - 24 jam"');
+assert.ok(sanitizedTableHtml.includes('<strong>1 - 7 hari</strong>'), 'Table cell must contain bold <strong> tag for "1 - 7 hari"');
+assert.ok(sanitizedTableHtml.includes('<strong>&gt; 1 minggu</strong>') || sanitizedTableHtml.includes('<strong>> 1 minggu</strong>'), 'Table cell must contain bold <strong> tag for "> 1 minggu"');
+
+// 3. Validasi italic tag <em>
+assert.ok(sanitizedTableHtml.includes('<em>Boost</em>'), 'Table cell must contain italic <em> tag for "*Boost*"');
+assert.ok(sanitizedTableHtml.includes('<em>Prioritas</em>'), 'Table cell must contain italic <em> tag for "*Prioritas*"');
+assert.ok(sanitizedTableHtml.includes('<em>Decay</em>'), 'Table cell must contain italic <em> tag for "*Decay*"');
+assert.ok(sanitizedTableHtml.includes('<em>Penalti</em>'), 'Table cell must contain italic <em> tag for "*Penalti*"');
+
+// 4. Validasi KaTeX formula inline: <span class="katex"> dan <math>
+assert.ok(sanitizedTableHtml.includes('class="katex"'), 'Table cell must render KaTeX with class="katex"');
+assert.ok(sanitizedTableHtml.includes('<math'), 'Table cell must render MathML <math> element');
+assert.ok(sanitizedTableHtml.includes('\\text{Skor} \\times 4') || sanitizedTableHtml.includes('Skor'), 'Table cell KaTeX formula must contain math content for "\\text{Skor} \\times 4"');
+
+// 5. Validasi tidak ada sisa literal "**" atau tanda dollar mentah "$" di dalam <td>
+const tdMatches = sanitizedTableHtml.match(/<td>[\s\S]*?<\/td>/g) || [];
+assert.ok(tdMatches.length === 12, 'Table must contain exactly 12 <td> cells across 4 rows');
+for (const td of tdMatches) {
+    assert.ok(!td.includes('**'), `Table cell must not contain unparsed literal "**": ${td}`);
+    assert.ok(!td.includes('$'), `Table cell must not contain raw dollar sign "$": ${td}`);
+}
+
+// 6. Validasi integrasi custom table renderer parseInline di ke-4 file target
+assert.ok(
+    blogDetailKatexSource.includes('(cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text'),
+    'src/pages/blog/posts/[id].astro must parse inline tokens in table renderer'
+);
+assert.ok(
+    newsDetailKatexSource.includes('(cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text'),
+    'src/pages/news/[id].astro must parse inline tokens in table renderer'
+);
+assert.ok(
+    editorKatexSource.includes('(cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text'),
+    'src/pages/writer/dashboard/editor.astro must parse inline tokens in table renderer'
+);
+assert.ok(
+    newsEditorKatexSource.includes('(cell.tokens && this.parser) ? this.parser.parseInline(cell.tokens) : cell.text'),
+    'src/pages/writer/dashboard/news/editor.astro must parse inline tokens in table renderer'
+);
+
+console.log('✓ Inline Markdown & KaTeX Formula parsing inside Markdown Tables verified across Blog, News, and Editors');
 
 console.log('\n=========================================');
 console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (11/11 SUITES)');
