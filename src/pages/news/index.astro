@@ -1,38 +1,64 @@
 ---
 export const prerender = false;
-Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
 
 import BaseLayout from "@layouts/BaseLayout.astro";
-import { listPublishedNews } from "../../lib/news";
+import { listPublishedNewsPaginated, getNewsFilterMetadata } from "../../lib/news";
 import { getProfileData } from "../../lib/cms";
-import { formatDate, extractFirstImage } from "../../lib/utils";
+import { formatDate } from "../../lib/utils";
 
 const profileData = await getProfileData();
-const news = await listPublishedNews();
+const metadata = await getNewsFilterMetadata();
+
+const PAGE_SIZE = 15;
+const rawPage = parseInt(Astro.url.searchParams.get('page') || '1', 10);
+const requestedPage = isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
+const selectedDate = Astro.url.searchParams.get('date') || 'all';
+const selectedTag = Astro.url.searchParams.get('tag') || 'all';
+
+const { items: news, total: totalFilteredItems, page, totalPages } = await listPublishedNewsPaginated({
+    page: requestedPage,
+    pageSize: PAGE_SIZE,
+    tag: selectedTag,
+    date: selectedDate,
+});
 
 const username = profileData.terminalPrompt ? profileData.terminalPrompt.split('@')[0] : "user";
+const isFiltered = selectedDate !== 'all' || selectedTag !== 'all' || page > 1;
 
-// Ekstraksi tanggal unik beserta hitungan berita
-const dateCountMap = new Map<string, number>();
-news.forEach((item) => {
-    const d = formatDate(item.publishedAt);
-    if (d) {
-        dateCountMap.set(d, (dateCountMap.get(d) || 0) + 1);
+function buildNewsUrl(targetPage: number, tag = selectedTag, date = selectedDate): string {
+    const params = new URLSearchParams();
+    if (date && date !== 'all') params.set('date', date);
+    if (tag && tag !== 'all') params.set('tag', tag);
+    if (targetPage > 1) params.set('page', String(targetPage));
+    const qs = params.toString();
+    return `/news${qs ? `?${qs}` : ''}`;
+}
+
+const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.includes('localhost')
+    ? process.env.PUBLIC_SITE_URL.replace(/\/$/, '')
+    : 'https://www.efzyn.my.id';
+
+const cleanCanonical = `${siteBase}/news`;
+const prevPageUrl = page > 1 ? buildNewsUrl(page - 1) : undefined;
+const nextPageUrl = page < totalPages ? buildNewsUrl(page + 1) : undefined;
+const prevFullUrl = prevPageUrl ? `${siteBase}${prevPageUrl}` : undefined;
+const nextFullUrl = nextPageUrl ? `${siteBase}${nextPageUrl}` : undefined;
+
+function getPaginationItems(current: number, total: number): (number | string)[] {
+    if (total <= 7) {
+        return Array.from({ length: total }, (_, i) => i + 1);
     }
-});
-const availableDates = Array.from(dateCountMap.keys()).sort((a, b) => b.localeCompare(a));
+    if (current <= 4) {
+        return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (current >= total - 3) {
+        return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
+}
 
-// Ekstraksi tag unik beserta hitungan berita
-const tagCountMap = new Map<string, number>();
-news.forEach((item) => {
-    (item.tags || []).forEach((t: string) => {
-        const lower = t.trim().toLowerCase();
-        if (lower) {
-            tagCountMap.set(lower, (tagCountMap.get(lower) || 0) + 1);
-        }
-    });
-});
-const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeCompare(b));
+const paginationItems = getPaginationItems(page, totalPages);
 ---
 
 <BaseLayout
@@ -41,12 +67,15 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
     breadcrumb="cd ~/news"
     backHref="/"
     backLabel="cd ~/"
+    canonicalUrl={cleanCanonical}
+    prevUrl={prevFullUrl}
+    nextUrl={nextFullUrl}
 >
     <!-- Header -->
     <header class="mb-6">
         <p class="font-mono text-xs text-muted mb-1">&gt; cd ~/news</p>
         <h1 class="font-mono text-2xl sm:text-3xl font-bold text-primary mb-1">
-            Berita Teknologi Terkini & Analisis Industri <span class="text-accent font-normal text-base sm:text-lg">({news.length})</span>
+            Berita Teknologi Terkini & Analisis Industri <span class="text-accent font-normal text-base sm:text-lg">({metadata.total})</span>
         </h1>
         <p class="font-mono text-xs text-muted">
             drwxr-xr-x {username} users 4096 . ~/news
@@ -68,9 +97,11 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
                     id="filter-date"
                     class="bg-background border border-muted hover:border-accent focus:border-primary focus:outline-none text-text text-xs px-2 py-1 font-mono cursor-[crosshair] transition-colors"
                 >
-                    <option value="all">Semua Tanggal ({news.length})</option>
-                    {availableDates.map((date) => (
-                        <option value={date}>{date} ({dateCountMap.get(date)})</option>
+                    <option value="all" selected={selectedDate === 'all'}>Semua Tanggal ({metadata.total})</option>
+                    {metadata.dates.map((item) => (
+                        <option value={item.date} selected={selectedDate === item.date}>
+                            {item.date} ({item.count})
+                        </option>
                     ))}
                 </select>
             </div>
@@ -82,27 +113,40 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
                     id="filter-tag"
                     class="bg-background border border-muted hover:border-accent focus:border-primary focus:outline-none text-text text-xs px-2 py-1 font-mono cursor-[crosshair] transition-colors"
                 >
-                    <option value="all">Semua Tag ({availableTags.length})</option>
-                    {availableTags.map((tag) => (
-                        <option value={tag}>#{tag} ({tagCountMap.get(tag)})</option>
+                    <option value="all" selected={selectedTag === 'all'}>Semua Tag ({metadata.tags.length})</option>
+                    {metadata.tags.map((item) => (
+                        <option value={item.tag} selected={selectedTag === item.tag}>
+                            #{item.tag} ({item.count})
+                        </option>
                     ))}
                 </select>
             </div>
 
             <!-- Reset Button -->
-            <button
-                type="button"
-                id="btn-reset-filters"
-                class="hidden border border-muted hover:border-primary bg-background text-accent hover:text-primary px-2.5 py-1 text-xs font-mono cursor-[crosshair] transition-colors"
-                title="Reset semua filter"
-            >
-                [ RESET ]
-            </button>
+            {isFiltered ? (
+                <a
+                    href="/news"
+                    id="btn-reset-filters"
+                    class="border border-muted hover:border-primary bg-background text-accent hover:text-primary px-2.5 py-1 text-xs font-mono cursor-[crosshair] transition-colors no-underline"
+                    title="Reset semua filter"
+                >
+                    [ RESET ]
+                </a>
+            ) : (
+                <button
+                    type="button"
+                    id="btn-reset-filters"
+                    class="hidden border border-muted hover:border-primary bg-background text-accent hover:text-primary px-2.5 py-1 text-xs font-mono cursor-[crosshair] transition-colors"
+                    title="Reset semua filter"
+                >
+                    [ RESET ]
+                </button>
+            )}
         </div>
 
         <!-- Filter Count Badge -->
         <div class="text-muted font-mono text-[11px] self-center">
-            <span id="filter-result-count" class="text-primary font-bold">{news.length}</span> / {news.length} items
+            <span id="filter-result-count" class="text-primary font-bold">{totalFilteredItems}</span> / {metadata.total} items
         </div>
     </div>
 
@@ -119,29 +163,24 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
     <div id="news-container" class="flex flex-col">
         {
             news.length === 0 ? (
-                <div class="py-12 flex justify-center border border-dashed border-muted">
-                    <p class="font-mono text-xs text-accent">Belum ada berita.</p>
+                <div id="no-results" class="py-12 flex flex-col items-center justify-center gap-3 border border-dashed border-muted my-4">
+                    <p class="font-mono text-xs text-accent">Tidak ada berita yang cocok dengan kriteria filter.</p>
+                    <a
+                        href="/news"
+                        class="border border-muted hover:border-primary bg-surface text-primary px-3 py-1.5 text-xs font-mono cursor-[crosshair] transition-colors no-underline"
+                    >
+                        [ LIHAT SEMUA BERITA ]
+                    </a>
                 </div>
             ) : (
                 news.map((item) => {
                     const dateFormatted = formatDate(item.publishedAt);
-                    const tagsLower = (item.tags || []).map(t => t.toLowerCase().trim()).filter(Boolean).join(' ');
-                    const searchHaystack = `${item.title} ${item.summary} ${item.sourceName} ${tagsLower}`.toLowerCase();
-                    const explicitCover =
-                        item.coverImage ||
-                        (item as any).cover_image ||
-                        (item as any).thumbnail ||
-                        (item as any).image;
-                    const contentImg = extractFirstImage(item.content);
-                    const coverThumbnail = explicitCover || contentImg;
+                    const coverThumbnail = item.coverImage || item.cover_image;
 
                     return (
                         <a
                             id={`news-${item.id}`}
                             href={`/news/${item.id}`}
-                            data-date={dateFormatted}
-                            data-tags={tagsLower}
-                            data-search={searchHaystack}
                             class="news-row terminal-hover group grid grid-cols-1 md:grid-cols-[120px_120px_1fr] gap-2 md:gap-4 px-4 py-4 md:py-3 border-b border-dashed border-muted transition-colors duration-0 no-underline cursor-[crosshair]"
                         >
                             <div class="font-mono text-xs text-accent self-start md:self-center">
@@ -179,69 +218,84 @@ const availableTags = Array.from(tagCountMap.keys()).sort((a, b) => a.localeComp
         }
     </div>
 
-    <div id="no-results" class="hidden py-12 flex justify-center border border-dashed border-muted">
-        <p class="font-mono text-xs text-accent">Tidak ada berita yang cocok dengan kriteria filter.</p>
-    </div>
+    <!-- Terminal Pagination Bar -->
+    {totalPages > 1 && (
+        <nav aria-label="News Pagination" class="flex flex-wrap items-center justify-between gap-3 pt-6 pb-4 border-t border-muted font-mono text-xs mt-4">
+            <div class="text-muted text-[11px] self-center">
+                PAGE <span class="text-primary font-bold">{page}</span> OF <span class="text-primary font-bold">{totalPages}</span> ({totalFilteredItems} items)
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+                {page > 1 ? (
+                    <a
+                        href={prevPageUrl}
+                        class="border border-muted hover:border-primary bg-background text-accent hover:text-primary px-2.5 py-1 text-xs transition-colors cursor-[crosshair] no-underline"
+                    >
+                        [ &lt; PREV ]
+                    </a>
+                ) : (
+                    <span class="border border-muted/30 text-muted/30 px-2.5 py-1 text-xs select-none cursor-not-allowed">
+                        [ &lt; PREV ]
+                    </span>
+                )}
 
-    <!-- Client-Side Filter Script -->
+                {paginationItems.map((p) => {
+                    if (p === '...') {
+                        return <span class="px-1 text-muted select-none">...</span>;
+                    }
+                    const isCurrent = p === page;
+                    return isCurrent ? (
+                        <span class="border border-primary bg-surface text-primary font-bold px-2.5 py-1 text-xs select-none">
+                            [ {p} ]
+                        </span>
+                    ) : (
+                        <a
+                            href={buildNewsUrl(Number(p))}
+                            class="border border-muted hover:border-primary bg-background text-accent hover:text-primary px-2.5 py-1 text-xs transition-colors cursor-[crosshair] no-underline"
+                        >
+                            [ {p} ]
+                        </a>
+                    );
+                })}
+
+                {page < totalPages ? (
+                    <a
+                        href={nextPageUrl}
+                        class="border border-muted hover:border-primary bg-background text-accent hover:text-primary px-2.5 py-1 text-xs transition-colors cursor-[crosshair] no-underline"
+                    >
+                        [ NEXT &gt; ]
+                    </a>
+                ) : (
+                    <span class="border border-muted/30 text-muted/30 px-2.5 py-1 text-xs select-none cursor-not-allowed">
+                        [ NEXT &gt; ]
+                    </span>
+                )}
+            </div>
+        </nav>
+    )}
+
+    <!-- Client-Side Filter Navigation Script -->
     <script is:inline>
         document.addEventListener('DOMContentLoaded', () => {
-            const newsRows = document.querySelectorAll('.news-row');
             const dateSelect = document.getElementById('filter-date');
             const tagSelect = document.getElementById('filter-tag');
-            const btnReset = document.getElementById('btn-reset-filters');
-            const countEl = document.getElementById('filter-result-count');
-            const noResults = document.getElementById('no-results');
 
-            function applyFilters() {
+            function applyFilterNavigation() {
                 const selectedDate = dateSelect ? dateSelect.value : 'all';
                 const selectedTag = tagSelect ? tagSelect.value : 'all';
 
-                let visibleCount = 0;
-
-                newsRows.forEach((row) => {
-                    const rowDate = row.getAttribute('data-date') || '';
-                    const rowTags = (row.getAttribute('data-tags') || '').split(' ').filter(Boolean);
-
-                    const matchDate = selectedDate === 'all' || rowDate === selectedDate;
-                    const matchTag = selectedTag === 'all' || rowTags.includes(selectedTag);
-
-                    if (matchDate && matchTag) {
-                        row.classList.remove('hidden');
-                        visibleCount++;
-                    } else {
-                        row.classList.add('hidden');
-                    }
-                });
-
-                if (countEl) {
-                    countEl.textContent = String(visibleCount);
-                }
-
-                if (noResults) {
-                    noResults.classList.toggle('hidden', visibleCount > 0);
-                }
-
-                const isFiltered = selectedDate !== 'all' || selectedTag !== 'all';
-                if (btnReset) {
-                    btnReset.classList.toggle('hidden', !isFiltered);
-                }
+                const params = new URLSearchParams();
+                if (selectedDate !== 'all') params.set('date', selectedDate);
+                if (selectedTag !== 'all') params.set('tag', selectedTag);
+                const qs = params.toString();
+                window.location.href = '/news' + (qs ? '?' + qs : '');
             }
 
             if (dateSelect) {
-                dateSelect.addEventListener('change', applyFilters);
+                dateSelect.addEventListener('change', applyFilterNavigation);
             }
 
             if (tagSelect) {
-                tagSelect.addEventListener('change', applyFilters);
-            }
-
-            if (btnReset) {
-                btnReset.addEventListener('click', () => {
-                    if (dateSelect) dateSelect.value = 'all';
-                    if (tagSelect) tagSelect.value = 'all';
-                    applyFilters();
-                });
+                tagSelect.addEventListener('change', applyFilterNavigation);
             }
         });
     </script>

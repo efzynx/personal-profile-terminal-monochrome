@@ -27,6 +27,8 @@ interface Props {
     schemaJsonLd?: Record<string, any> | Array<Record<string, any>>;
     variant?: 'default' | 'article';
     noindex?: boolean;
+    prevUrl?: string;
+    nextUrl?: string;
 }
 
 const {
@@ -45,6 +47,8 @@ const {
     schemaJsonLd,
     variant = 'default',
     noindex = false,
+    prevUrl,
+    nextUrl,
 } = Astro.props;
 
 import '../styles/global.css';
@@ -86,6 +90,8 @@ const fullTitle = title.includes('Ahmad Fauzan Adiman')
             faviconUrl={activeFavicon}
             avatarUrl={activeAvatar}
             noindex={noindex}
+            prevUrl={prevUrl}
+            nextUrl={nextUrl}
         />
 
         <!-- Web App Manifest (PWA) -->
