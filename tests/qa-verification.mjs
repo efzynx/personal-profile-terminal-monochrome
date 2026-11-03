@@ -1259,6 +1259,80 @@ assert.ok(
 
 console.log('✓ Inline Markdown & KaTeX Formula parsing inside Markdown Tables verified across Blog, News, and Editors');
 
+// ============================================================================
+// SUITE 12: News Listing Optimization (Field Projection, Pagination, SWR & sin1)
+// ============================================================================
+console.log('\n[Suite 12] Testing News Listing Optimization: Field Projection, Pagination, SWR, and sin1 Region');
+
+// 1. Validasi Field Projection di src/lib/news.ts (bebas dari select('*') dan kolom content)
+const newsLibSource = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/news.ts'), 'utf-8');
+
+assert.ok(
+    !newsLibSource.includes("from('news_items').select('*')\n        .order('published_at'"),
+    'listNews and listPublishedNews must not query select("*")'
+);
+assert.ok(
+    newsLibSource.includes(".select('id, title, summary, source_url, source_name, tags, cover_image, draft, published_at, created_at')"),
+    'listNews must use field projection excluding content'
+);
+assert.ok(
+    newsLibSource.includes(".select('id, title, summary, source_url, source_name, tags, cover_image, published_at, created_at')"),
+    'listPublishedNews must use field projection excluding content'
+);
+assert.ok(
+    newsLibSource.includes('export async function listPublishedNewsPaginated('),
+    'src/lib/news.ts must export listPublishedNewsPaginated'
+);
+assert.ok(
+    newsLibSource.includes('export async function getNewsFilterMetadata('),
+    'src/lib/news.ts must export getNewsFilterMetadata'
+);
+
+// 2. Validasi vercel.json: regions diset ke sin1
+const vercelJson = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'vercel.json'), 'utf-8'));
+assert.ok(Array.isArray(vercelJson.regions), 'vercel.json must define regions array');
+assert.ok(vercelJson.regions.includes('sin1'), 'vercel.json must include sin1 (Singapore) region');
+
+// 3. Validasi src/pages/news/index.astro: SWR header, pagination & filter selectors
+const newsIndexSource = fs.readFileSync(path.resolve(process.cwd(), 'src/pages/news/index.astro'), 'utf-8');
+assert.ok(
+    newsIndexSource.includes("Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');"),
+    'src/pages/news/index.astro must set SWR Cache-Control header: public, max-age=0, s-maxage=3600, stale-while-revalidate=86400'
+);
+assert.ok(
+    newsIndexSource.includes('listPublishedNewsPaginated'),
+    'src/pages/news/index.astro must invoke listPublishedNewsPaginated'
+);
+assert.ok(
+    newsIndexSource.includes('PAGE_SIZE = 15'),
+    'src/pages/news/index.astro must limit initial page size to 15'
+);
+assert.ok(
+    newsIndexSource.includes('aria-label="News Pagination"'),
+    'src/pages/news/index.astro must render News Pagination navigation bar'
+);
+assert.ok(
+    newsIndexSource.includes('[ &lt; PREV ]') && newsIndexSource.includes('[ NEXT &gt; ]'),
+    'src/pages/news/index.astro must render terminal style PREV and NEXT buttons'
+);
+assert.ok(
+    newsIndexSource.includes('id="filter-date"') && newsIndexSource.includes('id="filter-tag"'),
+    'src/pages/news/index.astro must retain modular date and tag dropdown selectors'
+);
+assert.ok(
+    newsIndexSource.includes('id="btn-reset-filters"'),
+    'src/pages/news/index.astro must retain reset filter button'
+);
+
+// 4. Validasi SEO canonical and prev/next links
+const seoComponentSource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/SEO.astro'), 'utf-8');
+assert.ok(seoComponentSource.includes('prevUrl?: string;'), 'SEO.astro must declare prevUrl prop');
+assert.ok(seoComponentSource.includes('nextUrl?: string;'), 'SEO.astro must declare nextUrl prop');
+assert.ok(seoComponentSource.includes('<link rel="prev" href={prevUrl} />'), 'SEO.astro must render rel="prev" link when provided');
+assert.ok(seoComponentSource.includes('<link rel="next" href={nextUrl} />'), 'SEO.astro must render rel="next" link when provided');
+
+console.log('✓ News Listing Field Projection, Pagination (15 items), SWR Headers & sin1 Region verified');
+
 console.log('\n=========================================');
-console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (11/11 SUITES)');
+console.log('ALL QA AUTOMATED TESTS PASSED SUCCESSFULLY (12/12 SUITES)');
 console.log('=========================================\n');

@@ -20,6 +20,8 @@ interface Props {
   faviconUrl?: string;
   avatarUrl?: string;
   noindex?: boolean;
+  prevUrl?: string;
+  nextUrl?: string;
 }
 
 const {
@@ -35,6 +37,8 @@ const {
   faviconUrl,
   avatarUrl,
   noindex = false,
+  prevUrl,
+  nextUrl,
 } = Astro.props;
 
 const siteBase = process.env.PUBLIC_SITE_URL && !process.env.PUBLIC_SITE_URL.includes('localhost')
@@ -226,6 +230,8 @@ finalSchema = schemaList.length === 1 ? schemaList[0] : schemaList;
 
 <!-- Canonical URL -->
 <link rel="canonical" href={canonicalURL} />
+{prevUrl && <link rel="prev" href={prevUrl} />}
+{nextUrl && <link rel="next" href={nextUrl} />}
 
 <!-- Meta Robots -->
 <meta name="robots" content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"} />
